@@ -180,8 +180,24 @@ function annotationtool(
             end
         end
     end
+
+    # Changing category of selected
+    on(events(fig).keyboardbutton, priority = 1) do event
+        if event.action in (Keyboard.press, Keyboard.repeat)
+            for (category, annotation_keys) in zip(categories, hotkeys[:annotation])
+                if any(ispressed.(mainimage_ax.scene, annotation_keys)) && selected_loc[curframe[]][].idx !== nothing
+                    @debug "Changing category on frame $(curframe[]) for location $(locs[][curframe[]][selected_loc[curframe[]][].idx]) to $category"
+                    locs[][curframe[]][selected_loc[curframe[]][].idx].category = category
+                    @debug "Location changed on frame $(curframe[]) to $(locs[][curframe[]][selected_loc[curframe[]][].idx])"
+                    notify(olocs[curframe[]])
+
+                    return Consume(true)
+                end
+            end
+        end
+        return Consume(false)
+    end
     # TODO: Position with minimap <04-04-22> 
-    # TODO: Keymaps for classification <04-04-22> 
     # TODO: TickBox for color change and tracks from prev image <04-04-22> 
     # TODO: Exporting the final data collected into tables <04-04-22> 
     # TODO: DataInspector <04-04-22> 
