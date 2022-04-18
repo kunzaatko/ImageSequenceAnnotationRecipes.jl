@@ -3,5 +3,13 @@ uuid = "ceb03c83-0333-401c-8551-e914caf70f65"
 authors = ["Martin Kunz <martinkunz@email.cz> and contributors"]
 version = "0.1.0"
 
+[deps]
+ColorSchemes = "35d6a980-a343-548e-a6ea-1d62b119f2f4"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
+Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
+
 [compat]
 julia = "1"
