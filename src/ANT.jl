@@ -17,6 +17,11 @@ HOTKEYS = Dict{Symbol,Any}(
 # TODO: Add posibility to drag image into figure with Union{..., Nothing} on im and Event
 # dropped_files <04-04-22> 
 # TODO: previous input insertion <04-04-22> 
+"""
+    annotationtool(im_seq::AbstractArray{<:Colorant,3}; args...)
+
+The only required argument is `im_seq` which is a sequence of images represented by a 3-dimensional array where the first 2 axes are spacial and the 3rd is the sequence dimension.
+"""
 function annotationtool(
     im::AbstractArray{<:Colorant,3};
     hotkeys = HOTKEYS,
@@ -103,18 +108,18 @@ function annotationtool(
 
     # TODO: Add lifts for current frame locs and selected_loc <18-04-22> 
     # Collected data
-    selected_loc = Vector{Node{Selected}}(undef, size(im)[3])
+    selected_loc = Vector{Observable{Selected}}(undef, size(im)[3])
     for i in 1:length(selected_loc)
-        selected_loc[i] = Node(Selected(nothing))
+        selected_loc[i] = Observable(Selected(nothing))
     end
 
     locs = Vector{Vector{Location}}(Vector(undef, size(im)[3]))
     for i in 1:length(locs)
         locs[i] = Vector{Location}(undef, 0)
     end
-    locs = locs |> Node
+    locs = locs |> Observable
 
-    olocs = [Node(OffsetVector(locs[], -i)) for i in 1:size(im)[3]]
+    olocs = [Observable(OffsetVector(locs[], -i)) for i in 1:size(im)[3]]
 
     on(curplots) do plots
         if !haskey(plots, :locations) # image for this frame is not yet created

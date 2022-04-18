@@ -51,11 +51,11 @@ function Makie.plot!(
     selected = locs[1]
     locations = locs[2]
 
-    points = Node(OffsetVector(Node(Location[])[], 0))
-    categories = Node(Symbol[])
-    colors = Node(OffsetVector(Node(Colorant[])[], 0))
-    point_selected = (; points = Node{Vector{Point{2,Real}}}(Point[]), colors = Node{Vector{Colorant}}(Vector(undef, 0)))
-    points_notselected = (; points = Node{Vector{Point{2,Real}}}(Point[]), colors = Node{Vector{Colorant}}(Vector(undef, 0)))
+    points = Observable(OffsetVector(Observable(Location[])[], 0))
+    categories = Observable(Symbol[])
+    colors = Observable(OffsetVector(Observable(Colorant[])[], 0))
+    point_selected = (; points = Observable{Vector{Point{2,Real}}}(Point[]), colors = Observable{Vector{Colorant}}(Vector(undef, 0)))
+    points_notselected = (; points = Observable{Vector{Point{2,Real}}}(Point[]), colors = Observable{Vector{Colorant}}(Vector(undef, 0)))
 
     # PERF: This is not necessary to do for all of the updates on any of the variable changes. 
     # TODO: Should check for and filter the actions that really need to be made if this is too slow.  
@@ -63,11 +63,11 @@ function Makie.plot!(
         # points
         start_index = max((-depth), (locations.offsets[1] + 1))
         end_index = min(height, (length(locations) - locations.offsets[1]))
-        points = OffsetVector(map(l -> Node(l), locations[start_index:end_index]), (-depth - 1)) |> Node
+        points = OffsetVector(map(l -> Observable(l), locations[start_index:end_index]), (-depth - 1)) |> Observable
         @debug "`on_updateplot` set points" points
 
         # categories
-        categories = map(i -> filter(c -> c !== nothing, getfield.(i, :category)), locations) |> Iterators.flatten |> unique |> sort |> Node
+        categories = map(i -> filter(c -> c !== nothing, getfield.(i, :category)), locations) |> Iterators.flatten |> unique |> sort |> Observable
         @assert all(typeof.(categories[]) .== Symbol) "Category not of type symbol at $(typeof.(categories[]) .!= Symbol) where $(categories[][typeof.(categories[]) .!= Symbol])"
         @debug "`on_updateplot` set categories" categories
 
@@ -111,7 +111,7 @@ function Makie.plot!(
                     end, layer[])
                 @assert all(typeof.(layer_categories) .== Symbol) "Categories not defined correctly. Some type was not `Symbol`"
                 @assert all(map(cat -> haskey(cat_col, cat), layer_categories)) "Not all categories have defined colors in `cat_col_dict`"
-                colors[idx] = map(lcat -> get(cat_col[lcat], layer_intensity), layer_categories) |> Node
+                colors[idx] = map(lcat -> get(cat_col[lcat], layer_intensity), layer_categories) |> Observable
                 @assert eltype(colors[idx][]) <: Colorant "Not a good color $(eltype(colors[idx][]))"
             end
             colors = OffsetVector(colors, (-locs.depth[] - 1))
@@ -166,7 +166,7 @@ function Makie.plot!(
     # FIX: This will not work if the depth or height is changed <10-04-22> 
     if locs.depth[] > 0
         for (cs, ls) in zip(colors[][begin:-1], points[][begin:-1])
-            scatter!(locs, ls; color = cs, locs.below_attributes..., visible = locs.visible )
+            scatter!(locs, ls; color = cs, locs.below_attributes..., visible = locs.visible)
         end
     end
 
