@@ -100,6 +100,8 @@ function annotationtool(
     end
 
 
+
+    # TODO: Add lifts for current frame locs and selected_loc <18-04-22> 
     # Collected data
     selected_loc = Vector{Node{Selected}}(undef, size(im)[3])
     for i in 1:length(selected_loc)
@@ -156,6 +158,27 @@ function annotationtool(
             end
         end
         return Consume(false)
+    end
+
+    function sel_loc(; measurefunc = norm)
+        xy = round.(Makie.mouseposition(mainimage_ax.scene))
+        curloc_pos = getfield.(locs[][curframe[]], :point)
+
+
+        @debug "`sel_loc`" curloc_pos xy
+        distances = measurefunc.(curloc_pos .- xy)
+        @debug "`sel_loc`" distances
+        selected_loc[curframe[]][].idx = argmin(distances)
+        notify(selected_loc[curframe[]])
+    end
+
+    # Selecting locations
+    on(events(mainimage_ax.scene).mousebutton, priority = 2) do event
+        if event.button == Mouse.left && event.action == Mouse.press
+            if any(ispressed.(mainimage_ax.scene, hotkeys[:select_loc]))
+                sel_loc()
+            end
+        end
     end
     # TODO: Position with minimap <04-04-22> 
     # TODO: Keymaps for classification <04-04-22> 
