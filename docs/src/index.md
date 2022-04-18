@@ -4,7 +4,10 @@ CurrentModule = ANT
 
 # ANT
 
-Documentation for [ANT](https://github.com/kunzaatko/ANT.jl).
+[ANT](https://github.com/kunzaatko/ANT.jl) is a tool for annotating sequences of
+images by points with categories. It is based on [`Makie`](@ref) and works with
+interactive backends of [`Makie`](@ref) which at the moment consist of
+[`GLMakie`](@ref) and [`WGLMakie`](@ref).
 
 ```@index
 ```
