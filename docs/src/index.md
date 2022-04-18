@@ -15,7 +15,7 @@ The only function that the package exposes is [`annotationtool(im_seq; args...)`
 simplest way to use this function when you have an image sequence loaded is
 
 <!-- TODO: This could be interactive... Can use the same approach as Makie in its documentation <18-04-22> -->
-```@repl
+```@example
 using Images # hide
 im_seq = load("./assets/test_image_seq.tiff") # hide
 im_seq .-= minimum(im_seq); im_seq ./= maximum(im_seq); # hide
