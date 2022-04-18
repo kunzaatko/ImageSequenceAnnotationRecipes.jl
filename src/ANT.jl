@@ -20,7 +20,7 @@ HOTKEYS = Dict{Symbol,Any}(
 function annotationtool(
     im::AbstractArray{<:Colorant,3};
     hotkeys = HOTKEYS,
-    categories = Symbol.(["1", "2", "3", "4", "5", "6"]), # NOTE: Will be determined if the data is passed in
+    categories = Symbol.(["1", "2", "3", "4"]), # NOTE: Will be determined if the data is passed in
     locations_attrs = (;)
 )
 
