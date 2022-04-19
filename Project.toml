@@ -13,4 +13,5 @@ Observables = "510215fc-4207-5dde-b226-833fc4488ee2"
 OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
 
 [compat]
+Observables = "0.4"
 julia = "1"
