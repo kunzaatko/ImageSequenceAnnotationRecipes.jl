@@ -134,29 +134,29 @@ function annotationtool(
         notify(olocs[curframe[]])
     end
 
-    # TODO: nothing and categories should be under one interface <kunzaatko>
-    # Adding locations
-    on(events(mainimage_ax.scene).mousebutton, priority = 2) do event
-        if event.button == Mouse.left && event.action == Mouse.press
-            if ispressed(mainimage_ax.scene, hotkeys[:add_loc])
-                # Add location
-                location = Location(curframe[], mouseposition(mainimage_ax.scene))
+    for (category, hotkey) in annotation_hotkeys
+        # Adding locations
+        on(events(mainimage_ax.scene).mousebutton, priority = 2) do mouse_event
+            if mouse_event.button == Mouse.left && mouse_event.action == Mouse.press && ispressed(mainimage_ax.scene, hotkey)
+                location = Location(curframe[], mouseposition(mainimage_ax.scene), category)
                 @debug "Adding location on frame $(curframe[]) with value $location"
                 add_loc(location)
                 return Consume(true)
-            else
-                for (category, annotation_key) in zip(categories, hotkeys[:annotation])
-                    if ispressed(mainimage_ax.scene, annotation_key)
-                        # Add location with category
-                        location = Location(curframe[], mouseposition(mainimage_ax.scene), category)
-                        @debug "Adding location on frame $(curframe[]) with value $location"
-                        add_loc(location)
-                        return Consume(true)
-                    end
-                end
             end
         end
-        return Consume(false)
+
+        # Changing category of selected
+        on(events(mainimage_ax.scene).keyboardbutton, priority = 1) do keyboard_event
+            if keyboard_event.action == Keyboard.press && ispressed(mainimage_ax.scene, hotkey & (Keyboard.right_alt | Keyboard.left_alt))
+                selected_loc[curframe[]][].idx !== nothing
+                @debug "Changing category on frame $(curframe[]) for location $(locs[][curframe[]][selected_loc[curframe[]][].idx]) to $category"
+                locs[][curframe[]][selected_loc[curframe[]][].idx].category = category
+                @debug "Location changed on frame $(curframe[]) to $(locs[][curframe[]][selected_loc[curframe[]][].idx])"
+                notify(olocs[curframe[]])
+                return Consume(true)
+            end
+            return Consume(false)
+        end
     end
 
     function sel_loc(; measurefunc = norm)
@@ -179,25 +179,6 @@ function annotationtool(
         end
     end
 
-    # TODO: Should register multiple ons rather than looping... It will be faster <kunzaatko> 
-    # FIX: This changes the category of the location even if the location should be added with a
-    # given category <21-04-22> 
-    # Changing category of selected
-    on(events(fig).keyboardbutton, priority = 1) do event
-        if event.action == Keyboard.release
-            for (category, annotation_keys) in zip(categories, hotkeys[:annotation])
-                if any(ispressed(mainimage_ax.scene, annotation_keys)) && selected_loc[curframe[]][].idx !== nothing
-                    @debug "Changing category on frame $(curframe[]) for location $(locs[][curframe[]][selected_loc[curframe[]][].idx]) to $category"
-                    locs[][curframe[]][selected_loc[curframe[]][].idx].category = category
-                    @debug "Location changed on frame $(curframe[]) to $(locs[][curframe[]][selected_loc[curframe[]][].idx])"
-                    notify(olocs[curframe[]])
-
-                    return Consume(true)
-                end
-            end
-        end
-        return Consume(false)
-    end
 
     # TODO: Position with minimap <04-04-22> 
     # TODO: TickBox for color change and tracks from prev image <04-04-22> 
