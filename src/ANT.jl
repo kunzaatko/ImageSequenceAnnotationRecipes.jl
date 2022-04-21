@@ -5,15 +5,25 @@ include("locations.jl")
 export annotationtool, HOTKEYS
 
 # FIX: This type should be specified strictly so that it can be relied on <06-04-22> 
-# TODO: Annotation hotkeys should include numbers... How to add them? <07-04-22> 
 HOTKEYS = Dict{Symbol,Any}(
     :prev_frame => (Keyboard.left | Keyboard.h),
     :next_frame => (Keyboard.right | Keyboard.l),
     :home => Keyboard.home,
-    :add_loc => (Keyboard.a | Keyboard.i),
     :del_loc => Keyboard.d,
     :sel_loc => Keyboard.s,
-    :annotation => [Keyboard.q, Keyboard.w, Keyboard.e, Keyboard.r, Keyboard.t])
+)
+
+ANNOTATION_HOTKEYS = [
+    (Keyboard.a | Keyboard._0 | Keyboard.i),
+    (Keyboard.q | Keyboard._1),
+    (Keyboard.w | Keyboard._2),
+    (Keyboard.e | Keyboard._3),
+    (Keyboard.r | Keyboard._4),
+    Keyboard._5,
+    Keyboard._6,
+    Keyboard._7,
+    Keyboard._8,
+    Keyboard._9]
 
 # TODO: Add posibility to drag image into figure with Union{..., Nothing} on im and Event
 # dropped_files <04-04-22> 
@@ -25,9 +35,13 @@ HOTKEYS = Dict{Symbol,Any}(
 The only required argument is `im_seq` which is a sequence of images represented by a 3-dimensional array where the first 2 axes are spacial and the 3rd is the sequence dimension.
 """
 function annotationtool(
+    # Image sequence
     im::AbstractArray{<:Colorant,3};
-    hotkeys = HOTKEYS,
-    categories = Symbol.(["1", "2", "3", "4"]), # NOTE: Will be determined if the data is passed in
+    # Keys mapped to base functions
+    hotkeys::Dict{Symbol,Any} = HOTKEYS,
+    # Annotation symbols, that are mapped to keytriggers
+    annotation_hotkeys::Dict{Union{Symbol,Nothing},Any} = Dict(zip(pushfirst!(Vector{Union{Symbol,Nothing}}(Symbol.(1:9)), nothing), ANNOTATION_HOTKEYS)), # NOTE: Will be determined if the data is passed in
+    # Attributes to pass to locations
     locations_attrs = (;)
 )
 
@@ -36,7 +50,7 @@ function annotationtool(
 
     # AXES
     baselimits = HyperRectangle(0.0, 0.0, Real.(size(im)[1:2])...)
-    mainimage_ax = Makie.Axis(fig[1, 1], aspect = size(im)[1] / size(im)[2], limits = ((0, size(im)[1]), (0,size(im)[2])))
+    mainimage_ax = Makie.Axis(fig[1, 1], aspect = size(im)[1] / size(im)[2], limits = ((0, size(im)[1]), (0, size(im)[2])))
     frameslider_pos = fig[2, 1]
 
     # TODO: Add minimap to left top corner of mainimage_ax, that will show all the things as in the
