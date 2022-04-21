@@ -14,5 +14,6 @@ OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
 
 [compat]
 Makie = "0.16"
+Observables = "0.4"
+OffsetArrays = "1"
 Images = "0.25"
-julia = "1"
