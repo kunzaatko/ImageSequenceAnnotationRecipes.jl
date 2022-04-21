@@ -18,25 +18,45 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - '1.0'
           - '1.7'
           - 'nightly'
         os:
           - ubuntu-latest
+          - macOS-latest
         arch:
           - x64
+          - x86
+        exclude:
+          - os: macOS-latest
+            arch: x86
     steps:
-      - uses: actions/checkout@v2
-      - uses: julia-actions/setup-julia@v1
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Setup Julia
+        uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
+
       - uses: julia-actions/cache@v1
-      - uses: julia-actions/julia-buildpkg@v1
-      - uses: julia-actions/julia-runtest@v1
-      - uses: julia-actions/julia-uploadcoveralls@v1
-        env:
-          COVERALLS_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
+
+      - name: Build package
+        uses: julia-actions/julia-buildpkg@v1
+
+      - name: Run tests
+        uses: julia-actions/julia-runtest@v1
+
+      - name: Process coverage
+        uses: julia-actions/julia-processcoverage@v1
+
+      - name: Upload coverage
+        uses: coverallsapp/github-action@master
+        with:
+          path-to-lcov: lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          flag-name: run${{ matrix.os }}-${{ matrix.version }}-${{ matrix.arch }}
+          parallel: true
   docs:
     name: Documentation
     runs-on: ubuntu-latest
@@ -44,7 +64,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
         with:
-          version: '1'
+          version: '1.7'
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-docdeploy@v1
         env:
@@ -56,3 +76,13 @@ jobs:
             using ANT
             DocMeta.setdocmeta!(ANT, :DocTestSetup, :(using ANT); recursive=true)
             doctest(ANT)'
+  finish:
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Coveralls Finished
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          parallel-finished: true
