@@ -1,6 +1,9 @@
 using ANT
 using Test
+using GeometryBasics: Point
 
 @testset "ANT.jl" begin
-    # Write your tests here.
+    @testset "Location" begin
+        @test Location(5, Point(5, 5)) == Location(5, Point(5, 5), nothing)
+    end
 end

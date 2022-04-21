@@ -1,4 +1,5 @@
 import Makie: convert_arguments, Scatter
+import Base.==
 using OffsetArrays
 using ColorSchemes
 using GeometryBasics
@@ -12,6 +13,8 @@ mutable struct Location
 end
 
 Location(frame::Integer, p::Point) = Location(frame, p, nothing)
+
+==(a::Location, b::Location) = a.time == b.time && a.point == b.point && a.category == b.category
 
 Makie.convert_arguments(P::Type{<:Scatter}, locations::Vector{Location}) = convert_arguments(P, getfield.(locations, :point))
 Makie.convert_arguments(P::Type{<:Scatter}, location::Location) = convert_arguments(P, location.point)
