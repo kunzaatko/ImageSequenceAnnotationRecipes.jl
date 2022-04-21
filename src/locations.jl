@@ -1,5 +1,5 @@
 import Makie: convert_arguments, Scatter
-import Base.==
+import Base.:(==)
 using OffsetArrays
 using ColorSchemes
 using GeometryBasics
