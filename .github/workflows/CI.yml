@@ -47,11 +47,16 @@ jobs:
       - name: Run tests
         uses: julia-actions/julia-runtest@v1
 
+      - name: Process coverage
+        uses: julia-actions/julia-processcoverage@v1
+
       - name: Upload coverage
-        run: julia --color=yes --project=. test/coverage.jl
-        working-directory: ${{ github.workspace }}
-        env:
-          COVERALLS_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
+        uses: coverallsapp/github-action@master
+        with:
+          path-to-lcov: lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          flag-name: run${{ matrix.os }}-${{ matrix.version }}-${{ matrix.arch }}
+          parallel: true
   docs:
     name: Documentation
     runs-on: ubuntu-latest
@@ -71,3 +76,13 @@ jobs:
             using ANT
             DocMeta.setdocmeta!(ANT, :DocTestSetup, :(using ANT); recursive=true)
             doctest(ANT)'
+  finish:
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Coveralls Finished
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          parallel-finished: true
