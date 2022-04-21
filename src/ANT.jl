@@ -1,5 +1,5 @@
 module ANT
-using Makie, Images, DataStructures
+using Makie, Images, DataStructures, GeometryBasics
 include("locations.jl")
 
 export annotationtool, HOTKEYS
@@ -9,9 +9,10 @@ export annotationtool, HOTKEYS
 HOTKEYS = Dict{Symbol,Any}(
     :prev_frame => (Keyboard.left | Keyboard.h),
     :next_frame => (Keyboard.right | Keyboard.l),
+    :home => Keyboard.home,
     :add_loc => (Keyboard.a | Keyboard.i),
     :del_loc => Keyboard.d,
-    :select_loc => Keyboard.s,
+    :sel_loc => Keyboard.s,
     :annotation => [Keyboard.q, Keyboard.w, Keyboard.e, Keyboard.r, Keyboard.t])
 
 # TODO: Add posibility to drag image into figure with Union{..., Nothing} on im and Event
@@ -34,7 +35,8 @@ function annotationtool(
     fig = Figure()
 
     # AXES
-    mainimage_ax = Makie.Axis(fig[1, 1], aspect = size(im)[1] / size(im)[2], limits = ((0, size(im)[1]), (0, size(im)[2])))
+    baselimits = HyperRectangle(0.0, 0.0, Real.(size(im)[1:2])...)
+    mainimage_ax = Makie.Axis(fig[1, 1], aspect = size(im)[1] / size(im)[2], limits = ((0, size(im)[1]), (0,size(im)[2])))
     frameslider_pos = fig[2, 1]
 
     # TODO: Add minimap to left top corner of mainimage_ax, that will show all the things as in the
@@ -89,9 +91,13 @@ function annotationtool(
             if ispressed(fig, hotkeys[:next_frame])
                 set_close_to!(frameslider, curframe[] + 1)
             end
+            if ispressed(fig, hotkeys[:home])
+                limits!(mainimage_ax, baselimits)
+            end
         end
         return Consume(false)
     end
+
 
     # TODO: Add lifts for current frame locs and selected_loc <18-04-22> 
     # Collected data
@@ -167,7 +173,7 @@ function annotationtool(
     # Selecting locations
     on(events(mainimage_ax.scene).mousebutton, priority = 2) do event
         if event.button == Mouse.left && event.action == Mouse.press
-            if ispressed(mainimage_ax.scene, hotkeys[:select_loc])
+            if ispressed(mainimage_ax.scene, hotkeys[:sel_loc])
                 sel_loc()
             end
         end
