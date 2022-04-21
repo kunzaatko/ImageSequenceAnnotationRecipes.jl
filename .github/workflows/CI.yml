@@ -33,7 +33,9 @@ jobs:
       - uses: julia-actions/cache@v1
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
-      - uses: julia-actions/julia-uploadcoveralls@v1
+
+      - run: julia --color=yes --project=. test/coverage.jl
+        working-directory: ${{ github.workspace }}
         env:
           COVERALLS_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
   docs:
