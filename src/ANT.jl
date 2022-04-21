@@ -7,12 +7,12 @@ export annotationtool, HOTKEYS
 # FIX: This type should be specified strictly so that it can be relied on <06-04-22> 
 # TODO: Annotation hotkeys should include numbers... How to add them? <07-04-22> 
 HOTKEYS = Dict{Symbol,Any}(
-    :prev_frame => [Keyboard.left, Keyboard.h],
-    :next_frame => [Keyboard.right, Keyboard.l],
-    :add_loc => [Keyboard.a],
-    :del_loc => [Keyboard.d],
-    :select_loc => [Keyboard.s],
-    :annotation => [[Keyboard.q], [Keyboard.w], [Keyboard.e], [Keyboard.r], [Keyboard.t]])
+    :prev_frame => (Keyboard.left | Keyboard.h),
+    :next_frame => (Keyboard.right | Keyboard.l),
+    :add_loc => (Keyboard.a | Keyboard.i),
+    :del_loc => Keyboard.d,
+    :select_loc => Keyboard.s,
+    :annotation => [Keyboard.q, Keyboard.w, Keyboard.e, Keyboard.r, Keyboard.t])
 
 # TODO: Add posibility to drag image into figure with Union{..., Nothing} on im and Event
 # dropped_files <04-04-22> 
@@ -82,7 +82,6 @@ function annotationtool(
     on(curframe) do frame
         foreach(f -> begin # make the previous plots invisible
                 if f != frame # NOTE: Checked here, because it is possible to land on the same frame and notifying `curframe` using the slider
-                    @show frameplots[f]
                     for (_, plot) in frameplots[f]
                         plot.visible = false
                     end
@@ -94,17 +93,15 @@ function annotationtool(
     # Global hotkey events
     on(events(fig).keyboardbutton) do event
         if event.action in (Keyboard.press, Keyboard.repeat)
-            for key in hotkeys[:prev_frame]
-                event.key == key && set_close_to!(frameslider, curframe[] - 1)
+            if ispressed(fig, hotkeys[:prev_frame])
+                set_close_to!(frameslider, curframe[] - 1)
             end
-            for key in hotkeys[:next_frame]
-                event.key == key && set_close_to!(frameslider, curframe[] + 1)
+            if ispressed(fig, hotkeys[:next_frame])
+                set_close_to!(frameslider, curframe[] + 1)
             end
         end
         return Consume(false)
     end
-
-
 
     # TODO: Add lifts for current frame locs and selected_loc <18-04-22> 
     # Collected data
@@ -144,15 +141,15 @@ function annotationtool(
     # Adding locations
     on(events(mainimage_ax.scene).mousebutton, priority = 2) do event
         if event.button == Mouse.left && event.action == Mouse.press
-            if any(ispressed.(mainimage_ax.scene, hotkeys[:add_loc]))
+            if ispressed(mainimage_ax.scene, hotkeys[:add_loc])
                 # Add location
                 location = Location(curframe[], mouseposition(mainimage_ax.scene))
                 @debug "Adding location on frame $(curframe[]) with value $location"
                 add_loc(location)
                 return Consume(true)
             else
-                for (category, annotation_keys) in zip(categories, hotkeys[:annotation])
-                    if any(ispressed.(mainimage_ax.scene, annotation_keys))
+                for (category, annotation_key) in zip(categories, hotkeys[:annotation])
+                    if ispressed(mainimage_ax.scene, annotation_key)
                         # Add location with category
                         location = Location(curframe[], mouseposition(mainimage_ax.scene), category)
                         @debug "Adding location on frame $(curframe[]) with value $location"
@@ -169,7 +166,6 @@ function annotationtool(
         xy = round.(Makie.mouseposition(mainimage_ax.scene))
         curloc_pos = getfield.(locs[][curframe[]], :point)
 
-
         @debug "`sel_loc`" curloc_pos xy
         distances = measurefunc.(curloc_pos .- xy)
         @debug "`sel_loc`" distances
@@ -180,7 +176,7 @@ function annotationtool(
     # Selecting locations
     on(events(mainimage_ax.scene).mousebutton, priority = 2) do event
         if event.button == Mouse.left && event.action == Mouse.press
-            if any(ispressed.(mainimage_ax.scene, hotkeys[:select_loc]))
+            if ispressed(mainimage_ax.scene, hotkeys[:select_loc])
                 sel_loc()
             end
         end
@@ -188,9 +184,9 @@ function annotationtool(
 
     # Changing category of selected
     on(events(fig).keyboardbutton, priority = 1) do event
-        if event.action in (Keyboard.press, Keyboard.repeat)
+        if event.action == Keyboard.release
             for (category, annotation_keys) in zip(categories, hotkeys[:annotation])
-                if any(ispressed.(mainimage_ax.scene, annotation_keys)) && selected_loc[curframe[]][].idx !== nothing
+                if any(ispressed(mainimage_ax.scene, annotation_keys)) && selected_loc[curframe[]][].idx !== nothing
                     @debug "Changing category on frame $(curframe[]) for location $(locs[][curframe[]][selected_loc[curframe[]][].idx]) to $category"
                     locs[][curframe[]][selected_loc[curframe[]][].idx].category = category
                     @debug "Location changed on frame $(curframe[]) to $(locs[][curframe[]][selected_loc[curframe[]][].idx])"
