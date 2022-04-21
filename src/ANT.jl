@@ -198,11 +198,13 @@ function annotationtool(
         end
         return Consume(false)
     end
+
     # TODO: Position with minimap <04-04-22> 
     # TODO: TickBox for color change and tracks from prev image <04-04-22> 
     # TODO: Exporting the final data collected into tables <04-04-22> 
     # TODO: DataInspector <04-04-22> 
 
+    DataInspector(fig)
     display(fig)
 end
 
