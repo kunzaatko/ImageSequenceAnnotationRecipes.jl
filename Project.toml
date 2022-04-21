@@ -14,4 +14,5 @@ OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
 
 [compat]
 Observables = "0.4"
+Images = "0.25"
 julia = "1"
