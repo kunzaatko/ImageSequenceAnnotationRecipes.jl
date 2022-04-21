@@ -203,6 +203,12 @@ function annotationtool(
     display(fig)
 end
 
+annotationtool(
+    im::AbstractArray{<:Colorant,3},
+    categories::Vector{Symbol};
+    args...
+) = annotationtool(im; annotation_hotkeys = Dict(zip(pushfirst!(Vector{Union{Symbol, Nothing}}(categories), nothing), ANNOTATION_HOTKEYS)), args...)
+
 # TODO: Method for image with the filename instead of passing the image <06-04-22> 
 
 end
