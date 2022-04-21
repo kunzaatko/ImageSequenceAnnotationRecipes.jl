@@ -26,6 +26,9 @@ jobs:
         arch:
           - x64
           - x86
+        exclude:
+          - os: macOS-latest
+            arch: x86
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
