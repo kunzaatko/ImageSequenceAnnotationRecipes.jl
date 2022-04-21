@@ -2,10 +2,10 @@ module ANT
 using Makie, Images, DataStructures, GeometryBasics
 include("locations.jl")
 
-export annotationtool, HOTKEYS
+export annotationtool, GUI_HOTKEYS, ANNOTATION_HOTKEYS
 
 # FIX: This type should be specified strictly so that it can be relied on <06-04-22> 
-HOTKEYS = Dict{Symbol,Any}(
+GUI_HOTKEYS = Dict{Symbol,Any}(
     :prev_frame => (Keyboard.left | Keyboard.h),
     :next_frame => (Keyboard.right | Keyboard.l),
     :home => Keyboard.home,
@@ -38,7 +38,7 @@ function annotationtool(
     # Image sequence
     im::AbstractArray{<:Colorant,3};
     # Keys mapped to base functions
-    hotkeys::Dict{Symbol,Any} = HOTKEYS,
+    gui_hotkeys::Dict{Symbol,Any} = GUI_HOTKEYS,
     # Annotation symbols, that are mapped to keytriggers
     annotation_hotkeys::Dict{Union{Symbol,Nothing},Any} = Dict(zip(pushfirst!(Vector{Union{Symbol,Nothing}}(Symbol.(1:9)), nothing), ANNOTATION_HOTKEYS)), # NOTE: Will be determined if the data is passed in
     # Attributes to pass to locations
@@ -99,13 +99,13 @@ function annotationtool(
     # Global hotkey events
     on(events(fig).keyboardbutton) do event
         if event.action in (Keyboard.press, Keyboard.repeat)
-            if ispressed(fig, hotkeys[:prev_frame])
+            if ispressed(fig, gui_hotkeys[:prev_frame])
                 set_close_to!(frameslider, curframe[] - 1)
             end
-            if ispressed(fig, hotkeys[:next_frame])
+            if ispressed(fig, gui_hotkeys[:next_frame])
                 set_close_to!(frameslider, curframe[] + 1)
             end
-            if ispressed(fig, hotkeys[:home])
+            if ispressed(fig, gui_hotkeys[:home])
                 limits!(mainimage_ax, baselimits)
             end
         end
@@ -187,7 +187,7 @@ function annotationtool(
     # Selecting locations
     on(events(mainimage_ax.scene).mousebutton, priority = 2) do event
         if event.button == Mouse.left && event.action == Mouse.press
-            if ispressed(mainimage_ax.scene, hotkeys[:sel_loc])
+            if ispressed(mainimage_ax.scene, gui_hotkeys[:sel_loc])
                 sel_loc()
             end
         end
