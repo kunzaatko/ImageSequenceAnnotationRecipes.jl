@@ -17,6 +17,7 @@ HOTKEYS = Dict{Symbol,Any}(
 # TODO: Add posibility to drag image into figure with Union{..., Nothing} on im and Event
 # dropped_files <04-04-22> 
 # TODO: previous input insertion <04-04-22> 
+# TODO: Make supplying the figure to draw on possible <21-04-22> 
 """
     annotationtool(im_seq::AbstractArray{<:Colorant,3}; args...)
 
@@ -50,26 +51,15 @@ function annotationtool(
     frameplots = Vector{Dict{Symbol,AbstractPlot}}(undef, size(im)[3])
     for i in 1:length(frameplots)
         frameplots[i] = Dict{Symbol,AbstractPlot}()
+        frameplots[i][:image] = image!(mainimage_ax, im[:, :, i], interpolate = false, inspectable = false, depth_shift = 0.0, visible = false)
     end
 
     # TODO: Should be done with PriorityObservable
     curplots = @lift frameplots[$curframe]
     on(curplots) do plots
-        # TODO: Should be split into more Priority Ons that
-        # 1. One that creates the plot if it does not exist -> Bigger priority
-        # 2. One that shows the plots that are neccesarry to show 
-        # 3. One that restores the limits <kunzaatko> 
         for (_, plot) in plots
-            # @debug "Making $plot visible on frame $(curframe[])"
+            @debug "Making $plot visible on frame $(curframe[])"
             plot.visible = true
-        end
-    end
-
-    on(curplots) do plots
-        if !haskey(plots, :image) # image for this frame is not yet created
-            lims = mainimage_ax.finallimits[] # limits to be restored on frame change
-            plots[:image] = image!(mainimage_ax, im[:, :, curframe[]], interpolate = false, inspectable = false)
-            limits!(mainimage_ax, lims)
         end
     end
 
@@ -138,6 +128,7 @@ function annotationtool(
         notify(olocs[curframe[]])
     end
 
+    # TODO: nothing and categories should be under one interface <kunzaatko>
     # Adding locations
     on(events(mainimage_ax.scene).mousebutton, priority = 2) do event
         if event.button == Mouse.left && event.action == Mouse.press
@@ -182,6 +173,9 @@ function annotationtool(
         end
     end
 
+    # TODO: Should register multiple ons rather than looping... It will be faster <kunzaatko> 
+    # FIX: This changes the category of the location even if the location should be added with a
+    # given category <21-04-22> 
     # Changing category of selected
     on(events(fig).keyboardbutton, priority = 1) do event
         if event.action == Keyboard.release
