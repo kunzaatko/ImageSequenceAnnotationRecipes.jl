@@ -68,6 +68,16 @@ function annotationtool(
     Label(frameslider_pos, lift(idx -> "$(idx)/$(size(im)[3])", curframe), tellwidth = false)
     # }}}
 
+    change_visibility(plot; value::Bool) = begin
+        @assert haskey(plot, :visible) "Plot does not have `:visible` attribute"
+        plot.visible = value
+    end
+
+    visible(plot) = change_visibility(plot, value = true)
+    not_visible(plot) = change_visibility(plot, value = false)
+    visible(plots::AbstractVector) = visible.(plots)
+    not_visible(plots::AbstractVector) = not_visible.(plots)
+
     # A collection of plots associated with the frame -> when the frame changes, previous frame
     # associated plots are made invisible and the plots for the current frame are shown
     frameplots = Vector{Dict{Symbol,AbstractPlot}}(undef, size(im)[3])
@@ -81,7 +91,7 @@ function annotationtool(
     on(curplots) do plots
         for (_, plot) in plots
             @debug "Making $plot visible on frame $(curframe[])"
-            plot.visible = true
+            visible(plot)
         end
     end
 
@@ -95,7 +105,7 @@ function annotationtool(
         foreach(f -> begin # make the previous plots invisible
                 if f != frame # NOTE: Checked here, because it is possible to land on the same frame and notifying `curframe` using the slider
                     for (_, plot) in frameplots[f]
-                        plot.visible = false
+                        not_visible(plot)
                     end
                 end
             end, visitedframes)
