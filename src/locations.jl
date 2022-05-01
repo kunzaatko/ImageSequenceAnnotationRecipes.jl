@@ -1,11 +1,14 @@
+# TODO: Make this a separate module <28-04-22> 
+# TODO: Test notifying the plots input arguments <27-04-22> 
 import Makie: convert_arguments, Scatter
 import Base.:(==)
 using OffsetArrays
 using ColorSchemes
 using GeometryBasics
 
-export Location, Selected
+export Location, SelectedLocation, LocationsLayer
 
+# TODO: Make this more generic with using Any instead of symbol 
 mutable struct Location
     time::Integer
     point::Point{2,Real}
@@ -19,175 +22,131 @@ Location(frame::Integer, p::Point) = Location(frame, p, nothing)
 Makie.convert_arguments(P::Type{<:Scatter}, locations::Vector{Location}) = convert_arguments(P, getfield.(locations, :point))
 Makie.convert_arguments(P::Type{<:Scatter}, location::Location) = convert_arguments(P, location.point)
 
-@recipe(Locations) do scene
+
+include("attributes.jl")
+
+@recipe(LocationsLayer) do scene
     Attributes(
-        # marker colorschemes -> below will be darker and above lighter by default
-        colors = Dict{Union{Integer,Symbol},ColorScheme}(
-            0 => ColorSchemes.tol_bu_rd, # default
-            1 => ColorSchemes.Greens_9,
-            2 => ColorSchemes.Purples_9,
-            3 => ColorSchemes.Oranges_9,
-            4 => ColorSchemes.Blues_9,
-        ), # has to include the 0 key for the default colors of the location
-        depth = 0,  # number of location layers to show below current layer
-        height = 0, # number of location layers to show above current layer
-        above_attributes = (; marker = :circle, markersize = 6),
-        below_attributes = (; marker = :square, markersize = 6),
-        base_attributes = (; marker = :cross, markersize = 9),
-        selected_attributes = (; marker = :circle, markersize = 12),
+        # A dictionary that represents which attributes to use for the different categories. Must
+        # include `:fallback` key with a `NamedTuple` that includes all the keys that are used in
+        # the '..._conversion_fuction's
+        # NOTE: Using Dict, because NamedTuple type is immutable  
+        annotation_attributes = Dict{Any,Dict{Symbol,Any}}(),
+        # A function that will convert the attributes of the points based on the offset from the
+        # reference layer. (Should include an `offset` keyword argument)
+        offset_conversion_function = function (x::Dict; offset = 0)
+            AttributeModifiers.increase_transparency!(x, 0.8^offset)
+            return x
+        end, #= TODO: =#
+        # A function that will convert the attributes of the given point
+        selected_conversion_function = function (x::Dict)
+            AttributeModifiers.increase_marker_size!(x, 2)
+            return x
+        end, #= TODO: =#
+        # Attributes that do not have a vector nature to be used for the scatter plot (in particular
+        # visible )
+        scatter_attributes = (; markerspace = SceneSpace),
         visible = true
     )
 end
 
-# TODO: Handle the colors in a different way so that the colors are muted in both directions the
-# same way... Depth and height can then be distinguished by shape and size for example <11-04-22, kunzaatko> 
+argument_names(::Type{<:LocationsLayer}) = (:layeroffset, :selected, :locations)
 
-argument_names(::Type{<:Locations}) = (:selected, :locations,)
+# TODO: Add posibility to have multiple points selected <27-04-22> 
+const SelectedLocation = Union{Nothing,<:Integer}
 
-mutable struct Selected
-    idx::Union{Nothing,<:Integer}
-end
 # FIX: When the depth and height are greater that 0, this throws an error <18-04-22> 
 function Makie.plot!(
-    locs::Locations{<:Tuple{Selected,OffsetVector{<:AbstractVector{Location}}}})
+    loc_layer::LocationsLayer{<:Tuple{<:Integer,SelectedLocation,<:AbstractVector{Location}}})
 
-    selected = locs[1]
-    locations = locs[2]
+    layeroffset = loc_layer[1]
+    selected = loc_layer[2]
+    locations = loc_layer[3]
 
-    points = Observable(OffsetVector(Observable(Location[])[], 0))
-    categories = Observable(Symbol[])
-    colors = Observable(OffsetVector(Observable(Colorant[])[], 0))
-    point_selected = (; points = Observable{Vector{Point{2,Real}}}(Point[]), colors = Observable{Vector{Colorant}}(Vector(undef, 0)))
-    points_notselected = (; points = Observable{Vector{Point{2,Real}}}(Point[]), colors = Observable{Vector{Colorant}}(Vector(undef, 0)))
-
-    # PERF: This is not necessary to do for all of the updates on any of the variable changes. 
-    # TODO: Should check for and filter the actions that really need to be made if this is too slow.  
-    function on_updateplot(locations, selected, depth, height)
-        # points
-        start_index = max((-depth), (locations.offsets[1] + 1))
-        end_index = min(height, (length(locations) - locations.offsets[1]))
-        points = OffsetVector(map(l -> Observable(l), locations[start_index:end_index]), (-depth - 1)) |> Observable
-        @debug "`on_updateplot` set points" points
-
-        # categories
-        categories = map(i -> filter(c -> c !== nothing, getfield.(i, :category)), locations) |> Iterators.flatten |> unique |> sort |> Observable
-        @assert all(typeof.(categories[]) .== Symbol) "Category not of type symbol at $(typeof.(categories[]) .!= Symbol) where $(categories[][typeof.(categories[]) .!= Symbol])"
-        @debug "`on_updateplot` set categories" categories
-
-        # a dictionary, where every category has an assigned colorscheme -> that is later used for
-        # geneteration of the layer colors for different categories
-        # NOTE: no category, represented by nothing is represented by `:nothing` key in this dict <10-04-22> 
-        cat_col_dict = lift(locs.colors, categories) do colors, categories
-            # FIX: This will not work if there is not enough colors in the attributes <10-04-22> 
-            idx = 0
-            cat_or_ind = [
-                begin
-                    if haskey(colors, cat)
-                        colors[cat]
-                    else
-                        idx += 1
-                        idx
-                    end
-                end for cat in categories
-            ]
-            col_cat = zip(categories, map(c_or_i -> colors[c_or_i], cat_or_ind)) |> Dict{Symbol,ColorScheme}
-            col_cat[:nothing] = colors[0]
-            return col_cat
+    attributes_dict = @lift begin
+        # NOTE: These are all the attributes of a scatter plot that could be a Vector with a value
+        # for each point of the scatterplot <kunzaatko> 
+        fallback_attributes = Dict(:color => HSL(60, 0.5,0.9), :markersize => 2, :marker => :hexagon, :markersize => 1., :rotations => 0.0, :strokecolor => HSL(0.,0.,0.))
+        fallback_attributes = haskey($(loc_layer.annotation_attributes), :fallback) ? merge(fallback_attributes, $(loc_layer.annotation_attributes)[:fallback]) : fallback_attributes
+        res = Dict(:fallback => fallback_attributes)
+        for (k, v) in $(loc_layer.annotation_attributes)
+            res[k] = merge(fallback_attributes, v)
         end
-        @debug "`on_updateplot` set cat_col_dict" cat_col_dict
-
-        colors = lift(points, cat_col_dict) do points, cat_col
-            layer_num = locs.depth[] + locs.height[] + 1
-            layer_intensities = if layer_num > 1
-                range(0.3, 1, length = layer_num)
-            else
-                [0.5]
-            end
-            @debug "Colors in `lift` with " layer_num layer_intensities
-            colors = Vector{Observable{Vector{Colorant}}}(undef, layer_num)
-            for (idx, (layer_intensity, layer)) in enumerate(zip(layer_intensities, points))
-                @assert eltype(layer[]) == Location "eltype of layer is $(eltype(layer))"
-                layer_categories = map(loc -> if loc.category !== nothing
-                        loc.category
-                    else
-                        :nothing
-                    end, layer[])
-                @assert all(typeof.(layer_categories) .== Symbol) "Categories not defined correctly. Some type was not `Symbol`"
-                @assert all(map(cat -> haskey(cat_col, cat), layer_categories)) "Not all categories have defined colors in `cat_col_dict`"
-                colors[idx] = map(lcat -> get(cat_col[lcat], layer_intensity), layer_categories) |> Observable
-                @assert eltype(colors[idx][]) <: Colorant "Not a good color $(eltype(colors[idx][]))"
-            end
-            colors = OffsetVector(colors, (-locs.depth[] - 1))
-            @assert colors.offsets == points.offsets "colors offsets $(colors.offsets) are not equal to points offsets $(points.offsets)"
-            @assert all(length(c[]) == length(p[]) for (c, p) in zip(colors, points)) "colors and points do not have equal lengths"
-            @debug "setting color in `lift`" colors
-            return colors
-        end
-
-
-        @debug "Running `on_selected` with selected" selected
-        empty!(point_selected.points[])
-        empty!(point_selected.colors[])
-        info = 0
-        while length(colors[][0][]) != length(points[][0][])
-            sleep(1e-4)
-            if info == 0
-                @debug "Waiting for color update in `on_selected`"
-            end
-            info += 1
-            if info == 400
-                @debug "colors" colors[][0][] " with length" length(colors[][0][])
-                @debug "points" points[][0][] " with length" length(points[][0][])
-                return @error "color not the same length as points" colors[] points[]
-            end
-        end
-        if info > 0
-            @debug "Waited $info ms for color update"
-        end
-        if selected.idx !== nothing
-            empty!(points_notselected.points[])
-            empty!(points_notselected.colors[])
-            push!(point_selected.points[], points[][0][][selected.idx].point)
-            push!(point_selected.colors[], colors[][0][][selected.idx])
-            notselected_indexes = collect(1:length(points[][0][]))
-            popat!(notselected_indexes, selected.idx)
-            append!(points_notselected.points[], getfield.(points[][0][][notselected_indexes], :point))
-            append!(points_notselected.colors[], colors[][0][][notselected_indexes])
-            notify(points_notselected.points)
-            notify(points_notselected.colors)
-        else
-            points_notselected.points[] = getfield.(points[][0][], :point)
-            points_notselected.colors[] = colors[][0][]
-        end
-        notify(point_selected.points)
-        notify(point_selected.colors)
+        res
     end
-    on_updateplot(locations[], selected[], locs.depth[], locs.height[]) # starting locations
-    Makie.Observables.onany(on_updateplot, locations, selected, locs.depth, locs.height)
 
+    function get_attributes(loc::Location, idx::Integer)
+        category = loc.category
+        base_attributes = category in keys(attributes_dict[]) ? attributes_dict[][category] : attributes_dict[][:fallback]
+        attributes = loc_layer.offset_conversion_function[](copy(base_attributes); offset = layeroffset[])
+        if selected[] == idx
+            attributes = loc_layer.selected_conversion_function[](copy(attributes))
+        end
+        return attributes
+    end
 
-    # FIX: This will not work if the depth or height is changed <10-04-22> 
-    if locs.depth[] > 0
-        for (cs, ls) in zip(colors[][begin:-1], points[][begin:-1])
-            scatter!(locs, ls; color = cs, locs.below_attributes..., visible = locs.visible)
+    # NOTE: Attributes themselves have to be notified <kunzaatko> 
+    function set_attributes!(plt_attributes, loc::Location, idx::Integer)
+        attributes = get_attributes(loc, idx)
+        for (k, v) in attributes
+            @assert k in keys(plt_attributes) && typeof(plt_attributes[k][]) <: AbstractVector "$k not in $(plt_attributes) or not a vector. Type is instead $(typeof(plt_attributes[k][]))"
+            plt_attributes[k][][idx] = v
         end
     end
 
-    if locs.height[] > 0
-        for (cs, ls) in zip(colors[][1:end], points[][1:end])
-            scatter!(locs, ls; color = cs, locs.above_attributes..., visible = locs.visible)
+    function set_attributes!(plt_attributes, locs::AbstractVector{Location})
+        loc_len = length(locs)
+        for k in keys(attributes_dict[][:fallback])
+            attrs_len = length(plt_attributes[k][])
+            if attrs_len != loc_len
+                append!(plt_attributes[k][], Vector(undef, loc_len - attrs_len))
+            end
+        end
+        for (idx, loc) in enumerate(locs)
+            set_attributes!(plt_attributes, loc, idx)
         end
     end
 
+    function notify_attributes(plt_attributes)
+        for k in keys(attributes_dict[][:fallback])
+            notify(plt_attributes[k])
+        end
+    end
 
-    scatter!(locs, points_notselected.points; color = points_notselected.colors, locs.base_attributes..., visible = locs.visible)
-    scatter!(locs, point_selected.points; color = point_selected.colors, locs.base_attributes..., locs.selected_attributes..., visible = locs.visible)
+    points = Observable{Vector{Point{2,Real}}}(getfield.(locations[], :point)) # initial values of locations
+    plt_attributes = Attributes(Dict((k, Vector(undef, 0)) for k in keys(attributes_dict[][:fallback]))) # undefined vectors to pass as attributes
+    set_attributes!(plt_attributes, locations[])
 
-    locs
+    plt = scatter!(loc_layer, points; plt_attributes..., loc_layer.scatter_attributes..., visible = loc_layer.visible)
+
+    function on_locations(locations)
+        @debug "Running `on_locations`"
+        empty!(points[])
+        append!(points[], getfield.(locations, :point))
+        set_attributes!(plt.attributes, locations)
+        notify_attributes(plt.attributes)
+        notify(points)
+    end
+    on(on_locations, locations)
+
+    function set_all_attributes(_, _, _)
+        @debug "Running `set_all_attributes`"
+        set_attributes!(plt.attributes, locations[])
+        notify_attributes(plt.attributes)
+    end
+    onany(set_all_attributes, loc_layer.offset_conversion_function, loc_layer.annotation_attributes, layeroffset)
+
+    function on_selected(selected, _)
+        @debug "Running `on_selected`"
+        if selected !== nothing
+            set_attributes!(plt.attributes, locations[][selected], selected)
+        end
+    end
+    onany(on_selected, selected, loc_layer.selected_conversion_function)
+
+    # FIX: Every time one of `locations`, `layeroffset` or `selected` is inspected, the listeners
+    # are called. This leads to them being called even when they are not needed. <kunzaatko> 
+    # TODO: Ask on discourse <27-04-22> 
+
+    return loc_layer
 end
-
-
-Makie.convert_arguments(P::Type{<:Locations}, selected::Union{Nothing,<:Integer}, locations::OffsetVector{<:AbstractVector{Location}}) = Makie.convert_arguments(P, Selected(selected), locations)
-Makie.convert_arguments(P::Type{<:Locations}, selected::Union{Nothing,<:Integer}, locations::Vector{<:AbstractVector{Location}}, layer::Integer) = Makie.convert_arguments(P, Selected(selected), OffsetVector(locations, -layer))
-Makie.convert_arguments(P::Type{<:Locations}, locations::Vector{<:AbstractVector{Location}}, layer::Integer) = Makie.convert_arguments(P, nothing, OffsetVector(locations, -layer))
-Makie.convert_arguments(P::Type{<:Locations}, locations::OffsetVector{<:AbstractVector{Location}}) = Makie.convert_arguments(P, nothing, locations)
