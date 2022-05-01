@@ -1,8 +1,9 @@
 module ANT
 using Makie, Images, DataStructures, GeometryBasics
 include("locations.jl")
+include("conversion.jl")
 
-export annotationtool, GUI_HOTKEYS, ANNOTATION_HOTKEYS
+export annotationtool, GUI_HOTKEYS, ANNOTATION_HOTKEYS, ArgumentConversion
 
 # TODO: Allow to define full HOTKEY including the mouseclick. This would be useful for example with
 # using 'middle_mouse_button' for selection
@@ -41,6 +42,8 @@ The only required argument is `im_seq` which is a sequence of images represented
 function annotationtool(
     # Image sequence
     im::AbstractArray{<:Colorant,3};
+    # locations supplied for annotation 
+    locations = nothing,
     # Keys mapped to base functions
     gui_hotkeys::Dict{Symbol,Any} = GUI_HOTKEYS,
     # Annotation symbols, that are mapped to keytriggers
@@ -138,10 +141,19 @@ function annotationtool(
         selected_loc[i] = 1 |> Observable{SelectedLocation}
     end
 
-    locs = Vector{Observable{Vector{Location}}}(Vector(undef, size(im)[3]))
-    for i in 1:length(locs)
-        locs[i] = Location[] |> Observable
+    if locations !== nothing
+        locs = ArgumentConversion.convert_input_locations(locations)
+        @assert length(locs) == size(im)[3] "The supplied locations must be the length of the image sequence. $(length(locs)) != $(size(im)[3])"
+    else
+        locs = Vector{Vector{Location}}(Vector(undef, size(im)[3]))
+        for i in 1:length(locs)
+            locs[i] = Location[]
+        end
     end
+    locs = map(locs) do loclayer
+        Observable(loclayer)
+    end
+
 
     locations_reminder = nothing
     on(curplots) do plots
@@ -262,6 +274,8 @@ function annotationtool(
     # FIX: DataInspector throws an error when called. `DimensionMismatch("arrays could not be broadcast to a common size")` <27-04-22>
     # DataInspector(fig) 
     display(fig)
+
+    return (;locations = Ref(locs))
 end
 
 annotationtool(
