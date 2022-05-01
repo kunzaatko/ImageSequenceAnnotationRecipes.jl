@@ -1,27 +1,16 @@
 # TODO: Make this a separate module <28-04-22> 
 # TODO: Test notifying the plots input arguments <27-04-22> 
 import Makie: convert_arguments, Scatter
-import Base.:(==)
 using OffsetArrays
 using ColorSchemes
 using GeometryBasics
 
 export Location, SelectedLocation, LocationsLayer
 
-# TODO: Make this more generic with using Any instead of symbol 
-mutable struct Location
-    time::Integer
-    point::Point{2,Real}
-    category::Union{Nothing,Symbol}
-end
-
-Location(frame::Integer, p::Point) = Location(frame, p, nothing)
-
-==(a::Location, b::Location) = a.time == b.time && a.point == b.point && a.category == b.category
+include("types.jl")
 
 Makie.convert_arguments(P::Type{<:Scatter}, locations::Vector{Location}) = convert_arguments(P, getfield.(locations, :point))
 Makie.convert_arguments(P::Type{<:Scatter}, location::Location) = convert_arguments(P, location.point)
-
 
 include("attributes.jl")
 
@@ -51,9 +40,6 @@ include("attributes.jl")
 end
 
 argument_names(::Type{<:LocationsLayer}) = (:layeroffset, :selected, :locations)
-
-# TODO: Add posibility to have multiple points selected <27-04-22> 
-const SelectedLocation = Union{Nothing,<:Integer}
 
 # FIX: When the depth and height are greater that 0, this throws an error <18-04-22> 
 function Makie.plot!(

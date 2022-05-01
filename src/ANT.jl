@@ -48,7 +48,7 @@ function annotationtool(
     # Attributes to pass to locations
     locations_attrs = (;),
     location_depth = 0,
-    location_heigh = 0
+    location_height = 0
 )
 
     #  Scene setup {{{
@@ -179,7 +179,7 @@ function annotationtool(
         # Adding locations
         on(events(mainimage_ax.scene).mousebutton, priority = 2) do mouse_event
             if mouse_event.button == Mouse.left && mouse_event.action == Mouse.press && ispressed(mainimage_ax.scene, hotkey)
-                location = Location(curframe[], mouseposition(mainimage_ax.scene), category)
+                location = Location(mouseposition(mainimage_ax.scene), category)
                 @debug "Adding location on frame $(curframe[]) with value $location"
                 add_loc(location)
                 return Consume(true)

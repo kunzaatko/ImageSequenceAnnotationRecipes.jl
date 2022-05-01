@@ -4,6 +4,6 @@ using GeometryBasics: Point
 
 @testset "ANT.jl" begin
     @testset "Location" begin
-        @test Location(5, Point(5, 5)) == Location(5, Point(5, 5), nothing)
+        @test Location(Point(5, 5)) == Location(Point(5, 5), nothing)
     end
 end
