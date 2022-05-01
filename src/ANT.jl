@@ -66,6 +66,8 @@ function annotationtool(
     frameslider = Slider(frameslider_pos, range = 1:size(im)[3])
     curframe = frameslider.value
     Label(frameslider_pos, lift(idx -> "$(idx)/$(size(im)[3])", curframe), tellwidth = false)
+
+    deactivate_interaction!(mainimage_ax, :rectanglezoom)
     # }}}
 
     change_visibility(plot; value::Bool) = begin
@@ -219,6 +221,39 @@ function annotationtool(
         end
     end
 
+    function initiate_dragging(; max_distance = 2, measurefunc = norm)::Bool
+        if length(locs[curframe[]][]) == 0
+            return false
+        end
+        xy = round.(Makie.mouseposition(mainimage_ax.scene))
+        seledloc_pos = getfield(locs[curframe[]][][selected_loc[curframe[]][]], :point)
+
+        @debug "`initiate_dragging`" seledloc_pos xy
+        distance = measurefunc(seledloc_pos - xy)
+        return distance <= max_distance
+    end
+
+    # Dragging selected location
+    dragging = false
+    dragged = nothing
+    on(events(mainimage_ax.scene).mousebutton, priority = 2) do event
+        if dragging == false && event.button == Mouse.left && event.action == Mouse.press
+            global dragged
+            @debug "Garbage-collect `dragged` $dragged"
+            global dragged = nothing
+            dragging = initiate_dragging()
+        end
+
+        if dragging == true
+            dragged_to = select_point(mainimage_ax.scene)
+            global dragged = on(dragged_to, weak = true) do point
+                locs[curframe[]][][selected_loc[curframe[]][]].point = point
+                notify(locs[curframe[]])
+            end
+            dragging = false
+            @debug "Created `dragged` $dragged"
+        end
+    end
 
     # TODO: Position with minimap <04-04-22> 
     # TODO: TickBox for color change and tracks from prev image <04-04-22> 
