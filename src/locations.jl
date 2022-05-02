@@ -40,16 +40,18 @@ include("attributes.jl")
     )
 end
 
+# FIX: When changing selected from nothing to something. There is an error. It can be fixed with
+# defining a new composite type where the field holds the value. <02-05-22> 
 MakieCore.argument_names(::Type{<:LocationsLayer}, numargs::Integer) = numargs == 3 && (:layeroffset, :selected, :locations,)
 
-# FIX: When the depth and height are greater that 0, this throws an error <18-04-22> 
 function Makie.plot!(
     loc_layer::LocationsLayer{<:Tuple{<:Integer,SelectedLocation,<:AbstractVector{Location}}})
 
     attributes_dict = @lift begin
         # NOTE: These are all the attributes of a scatter plot that could be a Vector with a value
         # for each point of the scatterplot <kunzaatko> 
-        fallback_attributes = Dict(:color => (HSL(60, 0.5, 0.9), 1.0), :markersize => 2.0, :marker => :hexagon, :rotations => 0.0, :strokecolor => (HSL(0.0, 0.0, 0.0), 1.0))
+        # TODO: Use nord from ColorSchemes instead of defining this way. <02-05-22> 
+        fallback_attributes = Dict(:color => RGBA{N0f8}(0.847, 0.871, 0.914, 1.0), :markersize => 2.0, :marker => :circle, :rotations => 0.0, :strokecolor => RGBA{N0f8}(0.231, 0.259, 0.322, 1.0))
         fallback_attributes = haskey($(loc_layer.annotation_attributes), :fallback) ? merge(fallback_attributes, $(loc_layer.annotation_attributes)[:fallback]) : fallback_attributes
         res = Dict(:fallback => fallback_attributes)
         for (k, v) in $(loc_layer.annotation_attributes)
