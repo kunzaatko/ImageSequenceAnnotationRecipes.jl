@@ -1,6 +1,7 @@
 # TODO: Make this a separate module <28-04-22> 
 # TODO: Test notifying the plots input arguments <27-04-22> 
 import Makie: convert_arguments, Scatter
+import MakieCore
 using OffsetArrays
 using ColorSchemes
 using GeometryBasics
@@ -34,25 +35,21 @@ include("attributes.jl")
         end, #= TODO: =#
         # Attributes that do not have a vector nature to be used for the scatter plot (in particular
         # visible )
-        scatter_attributes = (; markerspace = SceneSpace),
+        scatter_attributes = (; markerspace = SceneSpace, strokewidth = 2.0),
         visible = true
     )
 end
 
-argument_names(::Type{<:LocationsLayer}) = (:layeroffset, :selected, :locations)
+MakieCore.argument_names(::Type{<:LocationsLayer}, numargs::Integer) = numargs == 3 && (:layeroffset, :selected, :locations,)
 
 # FIX: When the depth and height are greater that 0, this throws an error <18-04-22> 
 function Makie.plot!(
     loc_layer::LocationsLayer{<:Tuple{<:Integer,SelectedLocation,<:AbstractVector{Location}}})
 
-    layeroffset = loc_layer[1]
-    selected = loc_layer[2]
-    locations = loc_layer[3]
-
     attributes_dict = @lift begin
         # NOTE: These are all the attributes of a scatter plot that could be a Vector with a value
         # for each point of the scatterplot <kunzaatko> 
-        fallback_attributes = Dict(:color => HSL(60, 0.5,0.9), :markersize => 2, :marker => :hexagon, :markersize => 1., :rotations => 0.0, :strokecolor => HSL(0.,0.,0.))
+        fallback_attributes = Dict(:color => (HSL(60, 0.5, 0.9), 1.0), :markersize => 2.0, :marker => :hexagon, :rotations => 0.0, :strokecolor => (HSL(0.0, 0.0, 0.0), 1.0))
         fallback_attributes = haskey($(loc_layer.annotation_attributes), :fallback) ? merge(fallback_attributes, $(loc_layer.annotation_attributes)[:fallback]) : fallback_attributes
         res = Dict(:fallback => fallback_attributes)
         for (k, v) in $(loc_layer.annotation_attributes)
@@ -61,11 +58,13 @@ function Makie.plot!(
         res
     end
 
+    @debug "Created attributes dict with values" attributes_dict
+
     function get_attributes(loc::Location, idx::Integer)
         category = loc.category
         base_attributes = category in keys(attributes_dict[]) ? attributes_dict[][category] : attributes_dict[][:fallback]
-        attributes = loc_layer.offset_conversion_function[](copy(base_attributes); offset = layeroffset[])
-        if selected[] == idx
+        attributes = loc_layer.offset_conversion_function[](copy(base_attributes); offset = loc_layer[:layeroffset][])
+        if loc_layer[:selected][] == idx
             attributes = loc_layer.selected_conversion_function[](copy(attributes))
         end
         return attributes
@@ -85,7 +84,8 @@ function Makie.plot!(
         for k in keys(attributes_dict[][:fallback])
             attrs_len = length(plt_attributes[k][])
             if attrs_len != loc_len
-                append!(plt_attributes[k][], Vector(undef, loc_len - attrs_len))
+                fallback_attr_value = attributes_dict[][:fallback][k]
+                append!(plt_attributes[k][], fill(fallback_attr_value, loc_len - attrs_len))
             end
         end
         for (idx, loc) in enumerate(locs)
@@ -99,9 +99,12 @@ function Makie.plot!(
         end
     end
 
-    points = Observable{Vector{Point{2,Real}}}(getfield.(locations[], :point)) # initial values of locations
-    plt_attributes = Attributes(Dict((k, Vector(undef, 0)) for k in keys(attributes_dict[][:fallback]))) # undefined vectors to pass as attributes
-    set_attributes!(plt_attributes, locations[])
+    # FIX: Every time one of `locations`, `layeroffset` or `selected` is inspected, the listeners
+    # are called. This leads to them being called even when they are not needed. <kunzaatko> 
+    # TODO: Ask on discourse <27-04-22> 
+
+    points = Point2[] |> Observable
+    plt_attributes = Attributes(Dict(k => Observable(typeof(v)[]) for (k, v) in attributes_dict[][:fallback])) # undefined vectors to pass as attributes
 
     plt = scatter!(loc_layer, points; plt_attributes..., loc_layer.scatter_attributes..., visible = loc_layer.visible)
 
@@ -113,26 +116,24 @@ function Makie.plot!(
         notify_attributes(plt.attributes)
         notify(points)
     end
-    on(on_locations, locations)
+    on(on_locations, loc_layer[:locations])
 
     function set_all_attributes(_, _, _)
         @debug "Running `set_all_attributes`"
-        set_attributes!(plt.attributes, locations[])
+        set_attributes!(plt.attributes, loc_layer[:locations][])
         notify_attributes(plt.attributes)
     end
-    onany(set_all_attributes, loc_layer.offset_conversion_function, loc_layer.annotation_attributes, layeroffset)
+    onany(set_all_attributes, loc_layer.offset_conversion_function, loc_layer.annotation_attributes, loc_layer[:layeroffset])
 
     function on_selected(selected, _)
         @debug "Running `on_selected`"
         if selected !== nothing
-            set_attributes!(plt.attributes, locations[][selected], selected)
+            set_attributes!(plt.attributes, loc_layer[:locations][][selected], selected)
         end
     end
-    onany(on_selected, selected, loc_layer.selected_conversion_function)
+    onany(on_selected, loc_layer[:selected], loc_layer.selected_conversion_function)
 
-    # FIX: Every time one of `locations`, `layeroffset` or `selected` is inspected, the listeners
-    # are called. This leads to them being called even when they are not needed. <kunzaatko> 
-    # TODO: Ask on discourse <27-04-22> 
+    on_locations(loc_layer[:locations][])
 
     return loc_layer
 end
