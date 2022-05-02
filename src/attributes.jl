@@ -9,7 +9,7 @@ saturate!(x::Dict, factor = 0.5) = dim!(x, 1 / factor)
 
 function darken!(x::Dict, factor = 0.5)
     col = HSLA(x[:color])
-    x[:color] = HSL(getfield.(col, [:h, :s])..., min(col.l * factor, 1), col.alpha)
+    x[:color] = HSLA(getfield.(col, [:h, :s])..., min(col.l * factor, 1), col.alpha)
 end
 lighten!(x::Dict, factor = 0.5) = darken!(x, 1 / factor)
 
