@@ -2,31 +2,19 @@ module AttributeModifiers
 using ColorTypes
 # TODO: Make these more constructable 
 function dim!(x::Dict, factor = 0.5)
-    if typeof(x[:color]) <: Tuple{<:Colorant,<:Real}
-        col = HSL(x[:color][1])
-        x[:color] = (HSL(col.h, min(col.s * factor, 1.0), col.l), x[:color][2])
-    elseif typeof(x[:color]) <: Colorant
-        col = HSL(x[:color])
-        x[:color] = HSL(col.h, min(col.s * factor, 1.0), col.l)
-    else
-        error("Unknown `:color` type")
-    end
+    col = HSLA(x[:color])
+    x[:color] = HSLA(col.h, min(col.s * factor, 1.0), getfield.(col, [:l, :alpha])...)
 end
 saturate!(x::Dict, factor = 0.5) = dim!(x, 1 / factor)
 
 function darken!(x::Dict, factor = 0.5)
-    if typeof(x[:color]) <: Tuple{<:Colorant,<:Real}
-        col = HSL(x[:color][1])
-        x[:color] = (HSL(col.h, col.s, min(col.l * factor, 1)), x[:color][2])
-    elseif typeof(x[:color]) <: Colorant
-        col = HSL(x[:color])
-        x[:color] = HSL(col.h, col.s, min(col.l * factor, 1))
-    else
-        error("Unknown `:color` type")
-    end
+    col = HSLA(x[:color])
+    x[:color] = HSL(getfield.(col, [:h, :s])..., min(col.l * factor, 1), col.alpha)
 end
+lighten!(x::Dict, factor = 0.5) = darken!(x, 1 / factor)
 
 function marker!(x::Dict, marker)
+    # TODO: Should convert to unifiing marker type. Same as color. <02-05-22> 
     x[:marker] = marker
 end
 
@@ -36,11 +24,7 @@ end
 increase_marker_size!(x::Dict, factor = 2.0) = reduce_marker_size!(x, 1 / factor)
 
 function increase_transparency!(x::Dict, factor = 0.5)
-    if typeof(x[:color]) <: Tuple{<:Colorant,<:Real}
-        x[:color] = (x[:color][1], min(max(x[:color][2] * factor, 0), 1))
-    elseif typeof(x[:color]) <: Union{Colorant,Symbol}
-        x[:color] = (x[:color], factor)
-    end
+    x[:color] = RGBA(getfield.(x[:color], [:r, :g, :b])..., min(max(x[:color].alpha * factor, 0), 1))
 end
 reduce_transparency!(x::Dict, factor = 0.5) = increase_transparency!(x, 1 / factor)
 end
