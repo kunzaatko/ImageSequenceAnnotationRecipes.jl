@@ -25,12 +25,27 @@ include("attributes.jl")
         # A function that will convert the attributes of the points based on the offset from the
         # reference layer. (Should include an `offset` keyword argument)
         offset_conversion_function = function (x::Dict; offset = 0)
-            AttributeModifiers.increase_transparency!(x, 0.8^offset)
+            if offset > 0
+                for _ in 1:offset
+                    AttributeModifiers.increase_transparency!(x)
+                    AttributeModifiers.lighten!(x)
+                    AttributeModifiers.decrease_markersize!(x)
+                end
+            elseif offset < 0
+                for _ in offset:(-1)
+                    AttributeModifiers.increase_transparency!(x)
+                    AttributeModifiers.darken!(x)
+                    AttributeModifiers.decrease_markersize!(x)
+                end
+            end
             return x
         end, #= TODO: =#
         # A function that will convert the attributes of the given point
         selected_conversion_function = function (x::Dict)
-            AttributeModifiers.increase_marker_size!(x, 2)
+            AttributeModifiers.increase_markersize!(x, 0.5)
+            AttributeModifiers.saturate!(x)
+            AttributeModifiers.lighten!(x)
+            AttributeModifiers.decrease_transparency!(x)
             return x
         end, #= TODO: =#
         # Attributes that do not have a vector nature to be used for the scatter plot (in particular
@@ -101,7 +116,7 @@ function Makie.plot!(
         end
     end
 
-    # FIX: Every time one of `locations`, `layeroffset` or `selected` is inspected, the listeners
+    # FIX: Every time one of `locations`, `layeroffset` is inspected, the listeners
     # are called. This leads to them being called even when they are not needed. <kunzaatko> 
     # TODO: Ask on discourse <27-04-22> 
 
