@@ -142,11 +142,18 @@ function Makie.plot!(
     end
     onany(set_all_attributes, loc_layer.offset_conversion_function, loc_layer.annotation_attributes, loc_layer[:layeroffset])
 
+    selected_buffer = CircularBuffer(1)
+    push!(selected_buffer, loc_layer[:selected][])
     function on_selected(selected, _)
+        for prev in filter(v -> v !== nothing, selected_buffer)
+            set_attributes!(plt.attributes, loc_layer[:locations][][prev], prev)
+        end
         @debug "Running `on_selected`"
         if selected !== nothing
             set_attributes!(plt.attributes, loc_layer[:locations][][selected], selected)
+            push!(selected_buffer, selected)
         end
+        notify_attributes(plt.attributes)
     end
     onany(on_selected, loc_layer[:selected], loc_layer.selected_conversion_function)
 
