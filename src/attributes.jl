@@ -1,6 +1,8 @@
 module AttributeModifiers
 using ColorTypes
-# TODO: Make these more constructable 
+# TODO: These should use Attributes instead <03-05-22> 
+# TODO: Make these more constructable, perhaps with a macro that makes the calls to the acctual
+# function with factor
 function saturation_key!(x::Dict, factor::Real, key::Symbol)
     @assert factor > 0 "The `factor` argument be between 0 and 1"
     @assert key in [:color, :strokecolor]

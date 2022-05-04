@@ -1,9 +1,10 @@
 module ANT
 using Makie, Images, DataStructures, GeometryBasics
-include("locations.jl")
-include("conversion.jl")
+include("attributes.jl")
+include("types.jl")
+include("recipes/mod.jl")
 
-export annotationtool, GUI_HOTKEYS, ANNOTATION_HOTKEYS, ArgumentConversion
+export location_annotationtool, track_annotationtool, GUI_HOTKEYS, ANNOTATION_HOTKEYS, Location
 
 # TODO: Allow to define full HOTKEY including the mouseclick. This would be useful for example with
 # using 'middle_mouse_button' for selection
@@ -136,9 +137,9 @@ function annotationtool(
 
     # TODO: Add lifts for current frame locs and selected_loc <18-04-22> 
     # Collected data
-    selected_loc = Vector{Observable{SelectedLocation}}(undef, size(im)[3])
+    selected_loc = Vector{Observable{Selected}}(undef, size(im)[3])
     for i in 1:length(selected_loc)
-        selected_loc[i] = 1 |> Observable{SelectedLocation}
+        selected_loc[i] = 1 |> Observable{Selected}
     end
 
     if locations !== nothing
@@ -154,25 +155,10 @@ function annotationtool(
         Observable(loclayer)
     end
 
-
-    locations_reminder = nothing
     on(curplots) do plots
         if !haskey(plots, :locations) # image for this frame is not yet created
-            if length(locs[curframe[]][]) == 0
-                locations_reminder = on(locs[curframe[]], weak = true) do locs
-                    @debug "In `locations_reminder` for frame $(curframe[])"
-                    notify(curplots)
-                end
-                # TODO: This should be included rather in the logic of the LocationsLayer @recipe
-                # because it should be possible to plot an empty locations vector <28-04-22> 
-                @debug "Registering `locations_reminder` for frame $(curframe[])"
-                return # NOTE: Otherwise GLMakie backend throws stack overflow exception
-            else
-                @debug "Removing `locations_reminder` for frame $(curframe[])"
-                locations_reminder = nothing
-            end
             lims = mainimage_ax.finallimits[] # limits to be restored on frame change
-            plots[:locations] = locationslayer!(mainimage_ax, 0, selected_loc[curframe[]], locs[curframe[]]; locations_attrs...)
+            plots[:locations] = Recipes.locationslayer!(mainimage_ax, 0, selected_loc[curframe[]], locs[curframe[]]; locations_attrs...)
             limits!(mainimage_ax, lims)
         end
     end
@@ -275,7 +261,9 @@ function annotationtool(
     # DataInspector(fig) 
     display(fig)
 
-    return (;locations = Ref(locs))
+    # TODO: Make output conversion function that is dispached on type of output <28-04-22> 
+
+    return Ref(locs)
 end
 
 annotationtool(

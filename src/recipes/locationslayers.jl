@@ -1,53 +1,56 @@
+module LocationsLayers
 # TODO: Make this a separate module <28-04-22> 
 # TODO: Test notifying the plots input arguments <27-04-22> 
-import Makie: convert_arguments, Scatter
-import MakieCore
+using Makie
+using MakieCore
 using OffsetArrays
 using ColorSchemes
+using ColorTypes
 using GeometryBasics
+using DataStructures
+using ...AttributeModifiers
+using ....ANT: Location, Selected
 
-export Location, SelectedLocation, LocationsLayer
+export locationslayer, locationslayer!
 
-include("types.jl")
+function offset_conversion(x::Dict; offset = 0)
+    if offset > 0
+        for _ in 1:offset
+            AttributeModifiers.increase_transparency!(x)
+            AttributeModifiers.lighten!(x)
+            AttributeModifiers.decrease_markersize!(x)
+        end
+    elseif offset < 0
+        for _ in offset:(-1)
+            AttributeModifiers.increase_transparency!(x)
+            AttributeModifiers.darken!(x)
+            AttributeModifiers.decrease_markersize!(x)
+        end
+    end
+    return x
+end
 
-Makie.convert_arguments(P::Type{<:Scatter}, locations::Vector{Location}) = convert_arguments(P, getfield.(locations, :point))
-Makie.convert_arguments(P::Type{<:Scatter}, location::Location) = convert_arguments(P, location.point)
-
-include("attributes.jl")
+function selected_conversion(x::Dict)
+    AttributeModifiers.increase_markersize!(x, 0.5)
+    AttributeModifiers.saturate!(x)
+    AttributeModifiers.lighten!(x)
+    AttributeModifiers.decrease_transparency!(x)
+    return x
+end
 
 @recipe(LocationsLayer) do scene
     Attributes(
         # A dictionary that represents which attributes to use for the different categories. Must
         # include `:fallback` key with a `NamedTuple` that includes all the keys that are used in
         # the '..._conversion_fuction's
-        # NOTE: Using Dict, because NamedTuple type is immutable  
+        # NOTE: Using Dict, because NamedTuple type is immutable
+        # FIX: Use Attributes instead for the inner Dict <03-05-22> 
         annotation_attributes = Dict{Any,Dict{Symbol,Any}}(),
         # A function that will convert the attributes of the points based on the offset from the
         # reference layer. (Should include an `offset` keyword argument)
-        offset_conversion_function = function (x::Dict; offset = 0)
-            if offset > 0
-                for _ in 1:offset
-                    AttributeModifiers.increase_transparency!(x)
-                    AttributeModifiers.lighten!(x)
-                    AttributeModifiers.decrease_markersize!(x)
-                end
-            elseif offset < 0
-                for _ in offset:(-1)
-                    AttributeModifiers.increase_transparency!(x)
-                    AttributeModifiers.darken!(x)
-                    AttributeModifiers.decrease_markersize!(x)
-                end
-            end
-            return x
-        end, #= TODO: =#
+        offset_conversion = offset_conversion,
         # A function that will convert the attributes of the given point
-        selected_conversion_function = function (x::Dict)
-            AttributeModifiers.increase_markersize!(x, 0.5)
-            AttributeModifiers.saturate!(x)
-            AttributeModifiers.lighten!(x)
-            AttributeModifiers.decrease_transparency!(x)
-            return x
-        end, #= TODO: =#
+        selected_conversion = selected_conversion,
         # Attributes that do not have a vector nature to be used for the scatter plot (in particular
         # visible )
         scatter_attributes = (; markerspace = SceneSpace, strokewidth = 2.0),
@@ -60,13 +63,15 @@ end
 MakieCore.argument_names(::Type{<:LocationsLayer}, numargs::Integer) = numargs == 3 && (:layeroffset, :selected, :locations,)
 
 function Makie.plot!(
-    loc_layer::LocationsLayer{<:Tuple{<:Integer,SelectedLocation,<:AbstractVector{Location}}})
+    loc_layer::LocationsLayer{<:Tuple{Integer,Selected,AbstractVector{Location}}})
 
     attributes_dict = @lift begin
         # NOTE: These are all the attributes of a scatter plot that could be a Vector with a value
         # for each point of the scatterplot <kunzaatko> 
+        # TODO: Make these a part of the default Style for the recipe <kunzaatko> 
+        # FIX: Use different color with more even fields (near 0.5) <03-05-22> 
         # TODO: Use nord from ColorSchemes instead of defining this way. <02-05-22> 
-        fallback_attributes = Dict(:color => RGBA{N0f8}(0.847, 0.871, 0.914, 1.0), :markersize => 2.0, :marker => :circle, :rotations => 0.0, :strokecolor => RGBA{N0f8}(0.231, 0.259, 0.322, 1.0))
+        fallback_attributes = Dict(:color => RGBA(0.847, 0.871, 0.914, 1.0), :markersize => 2.0, :marker => :circle, :rotations => 0.0, :strokecolor => RGBA(0.231, 0.259, 0.322, 1.0))
         fallback_attributes = haskey($(loc_layer.annotation_attributes), :fallback) ? merge(fallback_attributes, $(loc_layer.annotation_attributes)[:fallback]) : fallback_attributes
         res = Dict(:fallback => fallback_attributes)
         for (k, v) in $(loc_layer.annotation_attributes)
@@ -77,12 +82,14 @@ function Makie.plot!(
 
     @debug "Created attributes dict with values" attributes_dict
 
+    # TODO: The assignment doesnot have to be used, because we are modifying inplace? But would the
+    # annotation_attributes change then? Probably yes. <04-05-22> 
     function get_attributes(loc::Location, idx::Integer)
         category = loc.category
         base_attributes = category in keys(attributes_dict[]) ? attributes_dict[][category] : attributes_dict[][:fallback]
-        attributes = loc_layer.offset_conversion_function[](copy(base_attributes); offset = loc_layer[:layeroffset][])
+        attributes = loc_layer.offset_conversion[](copy(base_attributes); offset = loc_layer[:layeroffset][])
         if loc_layer[:selected][] == idx
-            attributes = loc_layer.selected_conversion_function[](copy(attributes))
+            attributes = loc_layer.selected_conversion[](copy(attributes))
         end
         return attributes
     end
@@ -140,24 +147,29 @@ function Makie.plot!(
         set_attributes!(plt.attributes, loc_layer[:locations][])
         notify_attributes(plt.attributes)
     end
-    onany(set_all_attributes, loc_layer.offset_conversion_function, loc_layer.annotation_attributes, loc_layer[:layeroffset])
+    onany(set_all_attributes, loc_layer.offset_conversion, loc_layer.annotation_attributes, loc_layer[:layeroffset])
 
     selected_buffer = CircularBuffer(1)
-    push!(selected_buffer, loc_layer[:selected][])
+    if !isnothing(loc_layer[:selected][])
+        push!(selected_buffer, loc_layer[:selected][])
+    end
     function on_selected(selected, _)
-        for prev in filter(v -> v !== nothing, selected_buffer)
-            set_attributes!(plt.attributes, loc_layer[:locations][][prev], prev)
-        end
         @debug "Running `on_selected`"
+        for prev in selected_buffer
+            set_attributes!(plt.attributes, loc_layer[:locations][][prev.idx], prev.idx)
+        end
         if selected !== nothing
-            set_attributes!(plt.attributes, loc_layer[:locations][][selected], selected)
+            set_attributes!(plt.attributes, loc_layer[:locations][][selected.idx], selected.idx)
             push!(selected_buffer, selected)
         end
         notify_attributes(plt.attributes)
     end
-    onany(on_selected, loc_layer[:selected], loc_layer.selected_conversion_function)
+    onany(on_selected, loc_layer[:selected], loc_layer.selected_conversion)
 
     on_locations(loc_layer[:locations][])
 
     return loc_layer
+end
+
+Makie.convert_arguments(P::Type{<:LocationsLayer}, layeroffset::Integer, selected::Union{Nothing,Integer}, locations::AbstractVector{Location}) = Makie.convert_arguments(P, layeroffset, Selected(selected), locations)
 end
