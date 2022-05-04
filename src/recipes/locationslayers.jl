@@ -2,9 +2,8 @@ module LocationsLayers
 # TODO: Make this a separate module <28-04-22> 
 # TODO: Test notifying the plots input arguments <27-04-22> 
 using Makie
-using MakieCore
-using OffsetArrays
-using ColorSchemes
+import MakieCore: argument_names
+import Makie: convert_arguments
 using ColorTypes
 using GeometryBasics
 using DataStructures
@@ -171,5 +170,5 @@ function Makie.plot!(
     return loc_layer
 end
 
-Makie.convert_arguments(P::Type{<:LocationsLayer}, layeroffset::Integer, selected::Union{Nothing,Integer}, locations::AbstractVector{Location}) = Makie.convert_arguments(P, layeroffset, Selected(selected), locations)
+convert_arguments(P::Type{<:LocationsLayer}, layeroffset::Integer, selected::Union{Nothing,Integer}, locations::AbstractVector{Location}) = convert_arguments(P, layeroffset, Selected(selected), locations)
 end
