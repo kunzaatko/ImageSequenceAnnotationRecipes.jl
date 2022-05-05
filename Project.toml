@@ -16,9 +16,11 @@ OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
 
 [compat]
 ColorSchemes = "3"
+ColorTypes = "0.11"
 DataStructures = "0.18"
 GeometryBasics = "0.4"
 Images = "0.25"
 Makie = "0.16"
-Observables = "0.4"
+MakieCore = "0.2"
+Observables = "0.4, 0.5"
 OffsetArrays = "1"

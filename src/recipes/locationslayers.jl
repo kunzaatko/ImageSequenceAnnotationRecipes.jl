@@ -105,9 +105,11 @@ function Makie.plot!(
         loc_len = length(locs)
         for k in keys(attributes_dict[][:fallback])
             attrs_len = length(plt_attributes[k][])
-            if attrs_len != loc_len
+            if attrs_len < loc_len
                 fallback_attr_value = attributes_dict[][:fallback][k]
                 append!(plt_attributes[k][], fill(fallback_attr_value, loc_len - attrs_len))
+            elseif attrs_len > loc_len
+                plt_attributes[k][] = plt_attributes[k][][1:loc_len]
             end
         end
         for (idx, loc) in enumerate(locs)
