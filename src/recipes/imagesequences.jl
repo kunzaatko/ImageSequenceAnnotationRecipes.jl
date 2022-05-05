@@ -1,5 +1,4 @@
 module ImageSequences
-using Distributed
 using DataStructures, Images
 using Makie
 import Makie: convert_arguments
