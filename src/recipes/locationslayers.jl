@@ -10,7 +10,7 @@ using DataStructures
 using ...AttributeModifiers
 using ....ANT: Location, Selected
 
-export locationslayer, locationslayer!
+export locationslayer, locationslayer!, LocationsLayer
 
 function offset_conversion(x::Dict; offset = 0)
     if offset > 0
@@ -50,8 +50,7 @@ end
         offset_conversion = offset_conversion,
         # A function that will convert the attributes of the given point
         selected_conversion = selected_conversion,
-        # Attributes that do not have a vector nature to be used for the scatter plot (in particular
-        # visible )
+        # Attributes that do not have a vector nature to be used for the scatter plot
         scatter_attributes = (; markerspace = SceneSpace, strokewidth = 2.0),
         visible = true
     )
@@ -59,7 +58,7 @@ end
 
 # FIX: When changing selected from nothing to something. There is an error. It can be fixed with
 # defining a new composite type where the field holds the value. <02-05-22> 
-MakieCore.argument_names(::Type{<:LocationsLayer}, numargs::Integer) = numargs == 3 && (:layeroffset, :selected, :locations,)
+argument_names(::Type{<:LocationsLayer}, numargs::Integer) = numargs == 3 && (:offset, :selected, :locations)
 
 function Makie.plot!(
     loc_layer::LocationsLayer{<:Tuple{Integer,Selected,AbstractVector{Location}}})
@@ -86,7 +85,7 @@ function Makie.plot!(
     function get_attributes(loc::Location, idx::Integer)
         category = loc.category
         base_attributes = category in keys(attributes_dict[]) ? attributes_dict[][category] : attributes_dict[][:fallback]
-        attributes = loc_layer.offset_conversion[](copy(base_attributes); offset = loc_layer[:layeroffset][])
+        attributes = loc_layer.offset_conversion[](copy(base_attributes); offset = loc_layer[:offset][])
         if loc_layer[:selected][] == idx
             attributes = loc_layer.selected_conversion[](copy(attributes))
         end
@@ -122,7 +121,7 @@ function Makie.plot!(
         end
     end
 
-    # FIX: Every time one of `locations`, `layeroffset` is inspected, the listeners
+    # FIX: Every time one of `locations`, `offset` is inspected, the listeners
     # are called. This leads to them being called even when they are not needed. <kunzaatko> 
     # TODO: Ask on discourse <27-04-22> 
 
@@ -146,7 +145,7 @@ function Makie.plot!(
         set_attributes!(plt.attributes, loc_layer[:locations][])
         notify_attributes(plt.attributes)
     end
-    onany(set_all_attributes, loc_layer.offset_conversion, loc_layer.annotation_attributes, loc_layer[:layeroffset])
+    onany(set_all_attributes, loc_layer.offset_conversion, loc_layer.annotation_attributes, loc_layer[:offset])
 
     selected_buffer = CircularBuffer(1)
     if !isnothing(loc_layer[:selected][])
@@ -170,5 +169,5 @@ function Makie.plot!(
     return loc_layer
 end
 
-convert_arguments(P::Type{<:LocationsLayer}, layeroffset::Integer, selected::Union{Nothing,Integer}, locations::AbstractVector{Location}) = convert_arguments(P, layeroffset, Selected(selected), locations)
+convert_arguments(P::Type{<:LocationsLayer}, offset::Integer, selected::Union{Nothing,Integer}, locations::AbstractVector{Location}) = convert_arguments(P, offset, Selected(selected), locations)
 end
