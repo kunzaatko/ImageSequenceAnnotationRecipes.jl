@@ -56,8 +56,6 @@ end
     )
 end
 
-# FIX: When changing selected from nothing to something. There is an error. It can be fixed with
-# defining a new composite type where the field holds the value. <02-05-22> 
 argument_names(::Type{<:LocationsLayer}, numargs::Integer) = numargs == 3 && (:offset, :selected, :locations)
 
 function Makie.plot!(
