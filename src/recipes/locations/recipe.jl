@@ -1,15 +1,9 @@
-module LocationsLayers
-# TODO: Make this a separate module <28-04-22> 
-# TODO: Test notifying the plots input arguments <27-04-22> 
 using Makie
 import MakieCore: argument_names
 import Makie: convert_arguments
 using ColorTypes
-using GeometryBasics
 using DataStructures
 using ...AttributeModifiers
-using ....ANT: Location, Selected
-
 export locationslayer, locationslayer!, LocationsLayer
 
 function offset_conversion(x::Dict; offset = 0)
@@ -132,6 +126,11 @@ function Makie.plot!(
 
     function on_locations(locations)
         @debug "Running `on_locations`"
+        selected = loc_layer[:selected]
+        if !isnothing(selected[]) && selected[].idx > length(locations)
+            @debug "Changed selected to `nothing`"
+            selected[] = nothing
+        end
         empty!(points[])
         append!(points[], getfield.(locations, :point))
         set_attributes!(plt.attributes, locations)
@@ -153,10 +152,14 @@ function Makie.plot!(
     end
     function on_selected(selected, _)
         @debug "Running `on_selected`"
-        for prev in selected_buffer
-            set_attributes!(plt.attributes, loc_layer[:locations][][prev.idx], prev.idx)
+        @debug "Selected_buffer" selected_buffer
+        # FIX: This should not be necessary. When fixed DataStructures.jl#810 can update. <08-05-22> 
+        if length(selected_buffer) > 0
+            for prev in filter(s -> s.idx <= length(loc_layer[:locations][]), selected_buffer)
+                set_attributes!(plt.attributes, loc_layer[:locations][][prev.idx], prev.idx)
+            end
         end
-        if selected !== nothing
+        if !isnothing(selected)
             set_attributes!(plt.attributes, loc_layer[:locations][][selected.idx], selected.idx)
             push!(selected_buffer, selected)
         end
@@ -170,4 +173,3 @@ function Makie.plot!(
 end
 
 convert_arguments(P::Type{<:LocationsLayer}, offset::Integer, selected::Union{Nothing,Integer}, locations::AbstractVector{Location}) = convert_arguments(P, offset, Selected(selected), locations)
-end

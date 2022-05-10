@@ -1,9 +1,9 @@
 module Recipes
-include("locationslayers.jl")
+include("locations/mod.jl")
 using .LocationsLayers
 export locationslayer, locationslayer!, LocationsLayer
 
-include("imagesequences.jl")
+include("images/mod.jl")
 using .ImageSequences
 export imagesequence, imagesequence!, ImageSequence
 

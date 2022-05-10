@@ -1,4 +1,3 @@
-module ImageSequences
 using DataStructures, Images
 using Makie
 import Makie: convert_arguments
@@ -13,6 +12,8 @@ export imagesequence, imagesequence!, ImageSequence
         image_attributes = (; interpolate = false, inspectable = false),
         # The dimension that represents the slices
         dims = 3,
+        # If the plot is showed
+        visible = true,
     )
 end
 
@@ -31,7 +32,7 @@ function Makie.plot!(
         error("Value of `dims` must be from 1 to 3. Instead is $(im_sequence.dims[]).")
     end
 
-    image!(im_sequence, frameim; im_sequence.image_attributes...)
+    image!(im_sequence, frameim; im_sequence.image_attributes..., visible = im_sequence.visible)
 
     return im_sequence
 end
@@ -39,6 +40,4 @@ end
 function convert_arguments(P::Type{<:ImageSequence}, frame::Integer, sequence_vec::AbstractVector{<:AbstractArray{<:Colorant,2}})
     im_sequence = cat(reshape.(sequence_vec, size(sequence_vec[1])..., 1)...; dims = 3)
     convert_arguments(P, frame, im_sequence)
-end
-
 end

@@ -1,5 +1,6 @@
 using ANT
 using Test
+using Makie
 using GeometryBasics: Point
 
 @testset "ANT.jl" begin
@@ -7,5 +8,14 @@ using GeometryBasics: Point
         @test Location(Point(5, 5)) == Location(Point(5, 5), nothing)
     end
 
-    # TODO: Add all the tests <28-04-22> 
+    @testset "Hotkey" begin
+        @test typeof(Keyboard.a) <: ANT.Hotkey
+        @test typeof(Mouse.right) <: ANT.Hotkey
+        @test typeof(Keyboard.a | Keyboard.b) <: ANT.Hotkey
+        @test typeof(Keyboard.a | Mouse.right) <: ANT.Hotkey
+        @test typeof(Keyboard.a & Mouse.right) <: ANT.Hotkey
+        @test typeof(Keyboard.a & Keyboard.b) <: ANT.Hotkey
+        @test typeof(Keyboard.a & !Keyboard.b) <: ANT.Hotkey
+        @test typeof((Keyboard.left_alt | Keyboard.right_alt) & Keyboard.a) <: ANT.Hotkey
+    end
 end
