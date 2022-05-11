@@ -1,5 +1,5 @@
 module LocationsLayers
-using ....ANT: Location, Selected
+using ....ImageSequenceAnnotationRecipes: Location, Selected
 
 include("recipe.jl")
 

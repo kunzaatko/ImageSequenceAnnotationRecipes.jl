@@ -1,5 +1,5 @@
-module ANT
-using Makie, Images, DataStructures, GeometryBasics
+module ImageSequenceAnnotationRecipes
+using Makie, Images, DataStructures, GeometryBasics, LinearAlgebra
 include("attributes.jl")
 include("types.jl")
 include("recipes/mod.jl")

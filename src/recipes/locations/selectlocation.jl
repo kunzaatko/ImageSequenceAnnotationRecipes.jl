@@ -1,6 +1,6 @@
 using Makie
-using ...ANT: Location, Selected, AbstractInteraction, Hotkey, Event
-using ...ANT
+using ...ImageSequenceAnnotationRecipes: Location, Selected, AbstractInteraction, Hotkey, Event
+using ...ImageSequenceAnnotationRecipes
 using LinearAlgebra
 using Base: @kwdef
 
@@ -28,9 +28,9 @@ function closest(x::SelectLocation)
     return amin, dists[amin]
 end
 
-ANT.condition(x::SelectLocation, _::Event) = x.plot.visible[] == true && length(x.plot[:locations][]) > 0 && closest(x)[2] <= x.range
+ImageSequenceAnnotationRecipes.condition(x::SelectLocation, _::Event) = x.plot.visible[] == true && length(x.plot[:locations][]) > 0 && closest(x)[2] <= x.range
 
-function ANT.execute(x::SelectLocation)
+function ImageSequenceAnnotationRecipes.execute(x::SelectLocation)
     x.plot[:selected][] = closest(x)[1]
     if x.movemouse
         new_mousepos = x.plot[:locations][][x.plot[:selected][].idx].point

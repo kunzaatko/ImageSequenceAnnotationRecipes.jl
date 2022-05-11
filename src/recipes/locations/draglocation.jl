@@ -1,6 +1,6 @@
 using Makie
-using ...ANT: AbstractInteraction, Hotkey, Event
-using ...ANT
+using ...ImageSequenceAnnotationRecipes: AbstractInteraction, Hotkey, Event
+using ...ImageSequenceAnnotationRecipes
 using LinearAlgebra
 using Base: @kwdef
 
@@ -22,21 +22,22 @@ end
 # TODO: Make the method on the plot type instead <07-05-22> 
 function closest(x::DragLocation)
     mp = round.(mouseposition(x.plot.parent))
-    dists = (x.measure).(getfield.(x.plot[:locations][], :point) .- mp)
+    dists = x.measure.(map(x -> convert(Vector, x) .- mp, getfield.(x.plot[:locations][], :point)))
     amin = argmin(dists)
     return amin, dists[amin]
 end
 
-ANT.condition(x::DragLocation) = x.plot.visible[] == true && closest(x)[2] <= x.range
+ImageSequenceAnnotationRecipes.condition(x::DragLocation) = x.plot.visible[] == true && closest(x)[2] <= x.range
 
+# FIX: This currently is not working. It makes the locations disappear <kunzaatko> 
 # TODO: This should be implemented in a way so that it is asynchronous (in video about events there
 # was something similar)
 # TODO: Test  
-function ANT.register(x::DragLocation)
+function ImageSequenceAnnotationRecipes.register(x::DragLocation)
     on(events(x.plot.parent).mouseposition) do mp
         mb = events(x.plot.parent).mousebutton[]
-        if ispressed(x.plot.parent, x.hotkey) && condition(x) && (mb.action == Mouse.press || mb.action == Mouse.repeat)
-            x.plot[:locations][][x.plot[:selected][]].point = mp
+        if ispressed(x.plot.parent, x.hotkey) && ImageSequenceAnnotationRecipes.condition(x) && (mb.action == Mouse.press || mb.action == Mouse.repeat)
+            x.plot[:locations][][x.plot[:selected][].idx].point = mp
             notify(x.plot[:locations])
         end
     end

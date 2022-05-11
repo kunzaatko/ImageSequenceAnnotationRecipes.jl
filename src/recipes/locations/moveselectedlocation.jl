@@ -1,6 +1,6 @@
 using Makie
-using ...ANT: Location, Selected, AbstractInteraction, Hotkey, Event
-using ...ANT
+using ...ImageSequenceAnnotationRecipes: Location, Selected, AbstractInteraction, Hotkey, Event
+using ...ImageSequenceAnnotationRecipes
 using Base: @kwdef
 
 export MoveSelectedLocation
@@ -14,9 +14,9 @@ export MoveSelectedLocation
     includemouse::Bool = true
 end
 
-ANT.condition(x::MoveSelectedLocation, _::Event) = x.plot.visible[] == true && !isnothing(x.plot[:selected][])
+ImageSequenceAnnotationRecipes.condition(x::MoveSelectedLocation, _::Event) = x.plot.visible[] == true && !isnothing(x.plot[:selected][])
 
-function ANT.execute(x::MoveSelectedLocation)
+function ImageSequenceAnnotationRecipes.execute(x::MoveSelectedLocation)
     mp = mouseposition(x.plot.parent)
     x.plot[:locations][][x.plot[:selected][].idx].point = mp
     notify(x.plot[:locations])

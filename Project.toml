@@ -1,4 +1,4 @@
-name = "ANT"
+name = "ImageSequenceAnnotationRecipes"
 uuid = "ceb03c83-0333-401c-8551-e914caf70f65"
 authors = ["Martin Kunz <martinkunz@email.cz> and contributors"]
 version = "0.1.0"

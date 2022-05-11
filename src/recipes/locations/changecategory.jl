@@ -1,6 +1,6 @@
 using Makie
-using ...ANT: AbstractInteraction, Hotkey, Event
-using ...ANT
+using ...ImageSequenceAnnotationRecipes: AbstractInteraction, Hotkey, Event
+using ...ImageSequenceAnnotationRecipes
 using Base: @kwdef
 
 export ChangeLocationCategory
@@ -16,10 +16,10 @@ export ChangeLocationCategory
     includemouse::Bool = false
 end
 
-ANT.condition(x::ChangeLocationCategory, _::Event) = !isnothing(x.plot[:selected][])
+ImageSequenceAnnotationRecipes.condition(x::ChangeLocationCategory, _::Event) = !isnothing(x.plot[:selected][])
 
 # FIX: Use plot.converted? <07-05-22> 
-function ANT.execute(x::ChangeLocationCategory) 
+function ImageSequenceAnnotationRecipes.execute(x::ChangeLocationCategory) 
     x.plot[:locations][][x.plot[:selected][].idx].category = x.category
     notify(x.plot[:locations])
 end

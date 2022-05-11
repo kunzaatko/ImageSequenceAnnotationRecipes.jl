@@ -1,6 +1,6 @@
 using Makie
-using ...ANT: Location, Selected, AbstractInteraction, Hotkey, Event
-using ...ANT
+using ...ImageSequenceAnnotationRecipes: Location, Selected, AbstractInteraction, Hotkey, Event
+using ...ImageSequenceAnnotationRecipes
 using DataStructures
 using Base: @kwdef
 
@@ -17,11 +17,11 @@ export ScrollCategories
     includemouse::Bool = true
 end
 
-ANT.condition(x::ScrollCategories) = x.plot.visible[] == true && !isnothing(x.plot[:selected][])
+ImageSequenceAnnotationRecipes.condition(x::ScrollCategories) = x.plot.visible[] == true && !isnothing(x.plot[:selected][])
 
-function ANT.register(x::ScrollCategories)
+function ImageSequenceAnnotationRecipes.register(x::ScrollCategories)
     on(events(x.plot.parent).scroll, priority = x.priority) do (_, dy)
-        if ispressed(x.plot.parent, x.hotkey) && ANT.condition(x)
+        if ispressed(x.plot.parent, x.hotkey) && ImageSequenceAnnotationRecipes.condition(x)
             @debug "Running ScrollCategories"
             selected_location = x.plot[:locations][][x.plot[:selected][].idx]
             if !(selected_location.category in x.categories)

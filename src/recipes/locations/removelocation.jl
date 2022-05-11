@@ -1,6 +1,6 @@
 using Makie
-using ...ANT: AbstractInteraction, Hotkey, Event
-using ...ANT
+using ...ImageSequenceAnnotationRecipes: AbstractInteraction, Hotkey, Event
+using ...ImageSequenceAnnotationRecipes
 using Base: @kwdef
 
 export RemoveSelectedLocation
@@ -17,10 +17,10 @@ export RemoveSelectedLocation
 end
 
 # NOTE: selected !isnothing should imply that locations is not empty <kunzaatko> 
-ANT.condition(x::RemoveSelectedLocation, _::Event) = x.plot.visible[] == true && !isnothing(x.plot[:selected][])
+ImageSequenceAnnotationRecipes.condition(x::RemoveSelectedLocation, _::Event) = x.plot.visible[] == true && !isnothing(x.plot[:selected][])
 
 # FIX: Use plot.converted? <07-05-22> 
-function ANT.execute(x::RemoveSelectedLocation) 
+function ImageSequenceAnnotationRecipes.execute(x::RemoveSelectedLocation) 
     popat!(x.plot[:locations][], x.plot[:selected][].idx)
     notify(x.plot[:locations])
     # TODO: What to do when `removeselection` is false <07-05-22, kunzaatko> 

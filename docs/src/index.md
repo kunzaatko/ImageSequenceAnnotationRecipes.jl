@@ -1,10 +1,10 @@
 ```@meta
-CurrentModule = ANT
+CurrentModule = ImageSequenceAnnotationRecipes
 ```
 
-# ANT
+# ImageSequenceAnnotationRecipes
 
-[ANT](https://github.com/kunzaatko/ANT.jl) is a tool for annotating sequences of
+[ImageSequenceAnnotationRecipes](https://github.com/kunzaatko/ImageSequenceAnnotationRecipes.jl) is a tool for annotating sequences of
 images by points with categories. It is based on [`Makie`](https://makie.juliaplots.org/stable/) and works with
 interactive backends of [`Makie`](https://makie.juliaplots.org/stable/) which at the moment consist of
 [`GLMakie`](https://makie.juliaplots.org/stable/documentation/backends/glmakie/) and [`WGLMakie`](https://makie.juliaplots.org/stable/documentation/backends/wglmakie/).
@@ -26,7 +26,7 @@ simplest way to use this function when you have an image sequence loaded is
 using Images # hide
 im_seq = load("./assets/test_image_seq.tiff") # hide
 im_seq .-= minimum(im_seq); im_seq ./= maximum(im_seq); # hide
-using ANT
+using ImageSequenceAnnotationRecipes
 using GLMakie # or WGLMakie
 annotationtool(im_seq)
 save("basic_usage.png", current_figure()) # hide
@@ -38,5 +38,5 @@ save("basic_usage.png", current_figure()) # hide
 ```
 
 ```@autodocs
-Modules = [ANT]
+Modules = [ImageSequenceAnnotationRecipes]
 ```

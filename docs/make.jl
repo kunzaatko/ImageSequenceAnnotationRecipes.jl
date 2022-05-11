@@ -1,16 +1,16 @@
-using ANT
+using ImageSequenceAnnotationRecipes
 using Documenter
 
-DocMeta.setdocmeta!(ANT, :DocTestSetup, :(using ANT); recursive=true)
+DocMeta.setdocmeta!(ImageSequenceAnnotationRecipes, :DocTestSetup, :(using ImageSequenceAnnotationRecipes); recursive=true)
 
 makedocs(;
-    modules=[ANT],
+    modules=[ImageSequenceAnnotationRecipes],
     authors="Martin Kunz <martinkunz@email.cz> and contributors",
     repo="https://github.com/kunzaatko/ANT.jl/blob/{commit}{path}#{line}",
-    sitename="ANT.jl",
+    sitename="ImageSequenceAnnotationRecipes.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://kunzaatko.github.io/ANT.jl",
+        canonical="https://kunzaatko.github.io/ImageSequenceAnnotationRecipes.jl",
         assets=String[],
     ),
     pages=[
@@ -19,6 +19,6 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/kunzaatko/ANT.jl",
+    repo="github.com/kunzaatko/ImageSequenceAnnotationRecipes.jl",
     devbranch="trunk",
 )

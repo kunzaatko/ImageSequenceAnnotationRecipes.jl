@@ -1,6 +1,6 @@
 using Makie
-using ...ANT: AbstractInteraction, Hotkey, Event
-using ...ANT
+using ...ImageSequenceAnnotationRecipes: AbstractInteraction, Hotkey, Event
+using ...ImageSequenceAnnotationRecipes
 using Base: @kwdef
 
 @kwdef struct NextFrame <: AbstractInteraction
@@ -11,9 +11,9 @@ using Base: @kwdef
     includemouse::Bool = false
 end
 
-ANT.condition(x::NextFrame, _::Event) = x.plot.visible[] == true && x.plot[:frame][] != size(x.plot[:sequence][])[x.plot.dims[]]
+ImageSequenceAnnotationRecipes.condition(x::NextFrame, _::Event) = x.plot.visible[] == true && x.plot[:frame][] != size(x.plot[:sequence][])[x.plot.dims[]]
 
-function ANT.execute(x::NextFrame) 
+function ImageSequenceAnnotationRecipes.execute(x::NextFrame) 
     x.plot[:frame][]  = x.plot[:frame][] + 1
 end
 
@@ -25,8 +25,8 @@ end
     includemouse::Bool = false
 end
 
-ANT.condition(x::PrevFrame, _::Event) = x.plot.visible[] == true && x.plot[:frame][] != 1
+ImageSequenceAnnotationRecipes.condition(x::PrevFrame, _::Event) = x.plot.visible[] == true && x.plot[:frame][] != 1
 
-function ANT.execute(x::PrevFrame) 
+function ImageSequenceAnnotationRecipes.execute(x::PrevFrame) 
     x.plot[:frame][] = x.plot[:frame][] - 1
 end

@@ -1,6 +1,6 @@
 using Makie
-using ...ANT: AbstractInteraction, Hotkey, Event
-using ...ANT
+using ...ImageSequenceAnnotationRecipes: AbstractInteraction, Hotkey, Event
+using ...ImageSequenceAnnotationRecipes
 using Base: @kwdef
 
 export ResetLimits
@@ -13,9 +13,9 @@ export ResetLimits
     includemouse::Bool = false
 end
 
-ANT.condition(x::ResetLimits, _::Event) = x.plot.visible[] == true
+ImageSequenceAnnotationRecipes.condition(x::ResetLimits, _::Event) = x.plot.visible[] == true
 
-function ANT.execute(x::ResetLimits)
+function ImageSequenceAnnotationRecipes.execute(x::ResetLimits)
     xsize, ysize = size(x.plot[:sequence][])[1:2]
     # FIX: This may not be the acctuall axis that is desired <08-05-22> 
     limits!(current_axis(), BBox(1, xsize, 1, ysize))

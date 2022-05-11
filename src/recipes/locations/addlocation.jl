@@ -1,6 +1,6 @@
 using Makie
-using ...ANT: Location, Selected, AbstractInteraction, Hotkey, Event
-using ...ANT
+using ...ImageSequenceAnnotationRecipes: Location, Selected, AbstractInteraction, Hotkey, Event
+using ...ImageSequenceAnnotationRecipes
 using Base: @kwdef
 
 export AddLocation
@@ -17,10 +17,10 @@ export AddLocation
     includemouse::Bool = false
 end
 
-ANT.condition(x::AddLocation, _::Event) = x.plot.visible[] == true
+ImageSequenceAnnotationRecipes.condition(x::AddLocation, _::Event) = x.plot.visible[] == true
 
 # FIX: Use plot.converted? <07-05-22> 
-function ANT.execute(x::AddLocation) 
+function ImageSequenceAnnotationRecipes.execute(x::AddLocation) 
     push!(x.plot[:locations][], Location(mouseposition(x.plot.parent), x.category))
     notify(x.plot[:locations])
     if x.selectadded
