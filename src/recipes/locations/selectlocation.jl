@@ -1,6 +1,7 @@
 using Makie
-using ...ANT: Location, Selected, AbstractInteraction, Hotkey, Event, LinearAlgebra
+using ...ANT: Location, Selected, AbstractInteraction, Hotkey, Event
 using ...ANT
+using LinearAlgebra
 using Base: @kwdef
 
 export SelectLocation
