@@ -16,7 +16,7 @@ export ChangeLocationCategory
     includemouse::Bool = false
 end
 
-ANT.condition(x::ChangeLocationCategory, _::Event) = !isnothing(x.plot[:selected])
+ANT.condition(x::ChangeLocationCategory, _::Event) = !isnothing(x.plot[:selected][])
 
 # FIX: Use plot.converted? <07-05-22> 
 function ANT.execute(x::ChangeLocationCategory) 
