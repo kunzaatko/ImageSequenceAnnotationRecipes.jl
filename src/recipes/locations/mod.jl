@@ -10,5 +10,6 @@ include("selectlocation.jl")
 include("changecategory.jl")
 include("draglocation.jl")
 include("scrollcategories.jl")
+include("moveselectedlocation.jl")
 
 end
