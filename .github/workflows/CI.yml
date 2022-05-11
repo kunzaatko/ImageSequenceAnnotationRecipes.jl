@@ -30,7 +30,6 @@ jobs:
           - os: macOS-latest
             arch: x86
           - os: ubuntu-latest
-            version: 'nightly'
             arch: x86
     steps:
       - name: Checkout repository
