@@ -75,9 +75,9 @@ jobs:
       - run: |
           julia --project=docs -e '
             using Documenter: DocMeta, doctest
-            using ANT
-            DocMeta.setdocmeta!(ANT, :DocTestSetup, :(using ANT); recursive=true)
-            doctest(ANT)'
+            using ImageSequenceAnnotationRecipes
+            DocMeta.setdocmeta!(ImageSequenceAnnotationRecipes, :DocTestSetup, :(using ImageSequenceAnnotationRecipes); recursive=true)
+            doctest(ImageSequenceAnnotationRecipes)'
   finish:
     needs: test
     if: always()
