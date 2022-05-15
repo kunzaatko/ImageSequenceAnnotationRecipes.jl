@@ -1,6 +1,8 @@
+using ImageSequenceAnnotationRecipes: ImageSequenceAnnotationRecipes as IsAR
 using ImageSequenceAnnotationRecipes
 using ImageSequenceAnnotationRecipes.Recipes
 using ImageSequenceAnnotationRecipes: AttributeModifiers as AM
+
 using ColorTypes
 using Test
 using Makie
@@ -21,17 +23,6 @@ using GeometryBasics: Point
         @test typeof(Keyboard.a & Keyboard.b) <: ImageSequenceAnnotationRecipes.Hotkey
         @test typeof(Keyboard.a & !Keyboard.b) <: ImageSequenceAnnotationRecipes.Hotkey
         @test typeof((Keyboard.left_alt | Keyboard.right_alt) & Keyboard.a) <: ImageSequenceAnnotationRecipes.Hotkey
-    end
-
-
-    @testset "Locations" begin
-        @testset "LocationsLayers" begin
-            locslen = 10
-            locscats = [:a, :b, :c, nothing]
-            locs = [Location(p, c) for (p, c) in zip(rand(Point2, locslen), rand(locscats, locslen))]
-            _, _, loclay = locationslayer(0, nothing, locs)
-            @test typeof(loclay) <: LocationsLayer
-        end
     end
 
     @testset "Attributes" begin
@@ -161,15 +152,68 @@ using GeometryBasics: Point
         end
     end
 
+    @testset "Locations" begin
+        @testset "LocationsLayers" begin
+            locslen = 10
+            locscats = [:a, :b, :c, nothing]
+            locs = [Location(p, c) for (p, c) in zip(rand(Point2, locslen), rand(locscats, locslen))]
+            _, _, loclay = locationslayer(0, nothing, locs)
+            @test typeof(loclay) <: LocationsLayer
 
+            append!(loclay[:locations][], [Location(p, c) for (p, c) in zip(rand(Point2, locslen), rand(locscats, locslen))])
+            notify(loclay[:locations])
+            @test length(loclay[:locations][]) == 2 * locslen
 
+            loclay[:selected][] = locslen
+            @test loclay[:selected][] == IsAR.Selected(locslen)
 
+            loclay[:selected][] = nothing
+            @test isnothing(loclay[:selected][])
 
-    #     ImSeqInts.execute(nf)
-    #     @test x[] == 2
-    #     pf = ImSeqInts.PrevFrame(Keyboard.j, (x))
-    #     ImSeqInts.execute(pf)
-    #     @test x[] == 1
-    # end
+            atspre = map(getproperty.(loclay.plots, :attributes)) do at
+                Dict(k => to_value(v) for (k,v) in at)
+            end
+            loclay[:offset][] = 1
+            atspost = map(getproperty.(loclay.plots, :attributes)) do at
+                Dict(k => to_value(v) for (k,v) in at)
+            end
+            @test !all(atspre .== atspost)
+
+            # NOTE: This is because the colors are parsed and so the attributes are not fully the
+            # same but should be the same after the first call of attribute modification <kunzaatko> 
+            loclay[:offset][] = 0
+            atspre = map(getproperty.(loclay.plots, :attributes)) do at
+                Dict(k => to_value(v) for (k,v) in at)
+            end
+            loclay[:offset][] = 1
+            loclay[:offset][] = 0
+            atspost = map(getproperty.(loclay.plots, :attributes)) do at
+                Dict(k => to_value(v) for (k,v) in at)
+            end
+            @test all(atspre .== atspost)
+
+            loclay[:offset][] = -1
+            atspost = map(getproperty.(loclay.plots, :attributes)) do at
+                Dict(k => to_value(v) for (k,v) in at)
+            end
+            @test !all(atspre .== atspost)
+
+            loclay[:offset][] = 0
+            atspost = map(getproperty.(loclay.plots, :attributes)) do at
+                Dict(k => to_value(v) for (k,v) in at)
+            end
+            @test all(atspre .== atspost)
+
+            pop!(loclay[:locations][])
+            notify(loclay[:locations])
+            @test length(loclay[:locations][]) == 2 * locslen - 1
+        end
+    end
+
+    @testset "ImageSequences" begin
+        image = fill(parse(RGB, :black), 3, 3, 2)
+        _, _, imseq = imagesequence(1, image)
+        @test typeof(imseq) <: ImageSequence
+    end
 
 end
