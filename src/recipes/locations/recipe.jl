@@ -56,6 +56,8 @@ argument_names(::Type{<:LocationsLayer}, numargs::Integer) = numargs == 3 && (:o
 function Makie.plot!(
     loc_layer::LocationsLayer{<:Tuple{Integer,Selected,AbstractVector{Location}}})
 
+    # PERF: This makes the accessing of full vectors of properties much faster and therefore much faster
+    # catergory index creations (especially for large vectors of locations) <kunzaatko> 
     locations_structvector = @lift StructVector($(loc_layer[:locations]))
     # Cached selected for when the restoring the previous selected to the normal state on change
     # NOTE: Changes on change of `loc_layer[:selected]` <kunzaatko> 
