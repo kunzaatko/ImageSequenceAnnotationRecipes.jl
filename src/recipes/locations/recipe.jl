@@ -1,4 +1,6 @@
 using Makie
+using Distributed
+using StructArrays
 import MakieCore: argument_names
 import Makie: convert_arguments
 using ColorTypes
@@ -6,7 +8,7 @@ using DataStructures
 using ...AttributeModifiers
 export locationslayer, locationslayer!, LocationsLayer
 
-function offset_conversion(x::Dict; offset = 0)
+function offset_conversion(x::Attributes; offset = 0)
     if offset > 0
         for _ in 1:offset
             AttributeModifiers.increase_transparency!(x)
@@ -20,156 +22,153 @@ function offset_conversion(x::Dict; offset = 0)
             AttributeModifiers.decrease_markersize!(x)
         end
     end
-    return x
 end
 
-function selected_conversion(x::Dict)
+function selected_conversion(x::Attributes)
     AttributeModifiers.increase_markersize!(x, 0.5)
     AttributeModifiers.saturate!(x)
     AttributeModifiers.lighten!(x)
     AttributeModifiers.decrease_transparency!(x)
-    return x
 end
 
 @recipe(LocationsLayer) do scene
     Attributes(
+        # FIX: There is no need for this dict if there are only symbol attributes. This should be
+        # handled by the parent attributes.
         # A dictionary that represents which attributes to use for the different categories. Must
         # include `:fallback` key with a `NamedTuple` that includes all the keys that are used in
         # the '..._conversion_fuction's
         # NOTE: Using Dict, because NamedTuple type is immutable
         # FIX: Use Attributes instead for the inner Dict <03-05-22> 
-        annotation_attributes = Dict{Any,Dict{Symbol,Any}}(),
+        annotation_attributes = Dict{Any,Attributes}(),
         # A function that will convert the attributes of the points based on the offset from the
         # reference layer. (Should include an `offset` keyword argument)
         offset_conversion = offset_conversion,
         # A function that will convert the attributes of the given point
         selected_conversion = selected_conversion,
         # Attributes that do not have a vector nature to be used for the scatter plot
-        scatter_attributes = (; markerspace = SceneSpace, strokewidth = 2.0),
+        scatter_attributes = (; strokewidth = 2.0, markerspace = :data),
+        max_categories = 8,
         visible = true
     )
+    # TODO: Add a Theme that determines the fallbackattributes  
 end
 
 argument_names(::Type{<:LocationsLayer}, numargs::Integer) = numargs == 3 && (:offset, :selected, :locations)
 
 function Makie.plot!(
-    loc_layer::LocationsLayer{<:Tuple{Integer,Selected,AbstractVector{Location}}})
+    loc_layer::LocationsLayer{<:Tuple{Integer,Selected,StructVector{Location}}})
 
-    attributes_dict = @lift begin
-        # NOTE: These are all the attributes of a scatter plot that could be a Vector with a value
-        # for each point of the scatterplot <kunzaatko> 
-        # TODO: Make these a part of the default Style for the recipe <kunzaatko> 
-        # FIX: Use different color with more even fields (near 0.5) <03-05-22> 
-        # TODO: Use nord from ColorSchemes instead of defining this way. <02-05-22> 
-        fallback_attributes = Dict(:color => RGBA(0.847, 0.871, 0.914, 1.0), :markersize => 2.0, :marker => :circle, :rotations => 0.0, :strokecolor => RGBA(0.231, 0.259, 0.322, 1.0))
-        fallback_attributes = haskey($(loc_layer.annotation_attributes), :fallback) ? merge(fallback_attributes, $(loc_layer.annotation_attributes)[:fallback]) : fallback_attributes
-        res = Dict(:fallback => fallback_attributes)
-        for (k, v) in $(loc_layer.annotation_attributes)
-            res[k] = merge(fallback_attributes, v)
+    # TODO: From Theme 
+    fallback_attrs = Attributes(:color => RGBA(0.847, 0.871, 0.914, 1.0), :markersize => 2.0, :marker => :circle, :rotations => 0.0, :strokecolor => RGBA(0.231, 0.259, 0.322, 1.0))
+
+
+    # Cached selected for when the restoring the previous selected to the normal state on change
+    # NOTE: Changes on change of `loc_layer[:selected]` <kunzaatko> 
+    selectedcache = loc_layer[:selected][]
+    catbitarrays = lift(loc_layer[:locations]) do locs
+        d = Dict(
+            (cat !== nothing ? cat : :fallback) => (locs.category .== cat)
+            for cat in unique(locs.category)
+        )
+        if !isnothing(selectedcache)
+            selected_category = loc_layer[:locations][].category[selectedcache.idx]
+            d[selected_category][selectedcache.idx] = 0
+            d[:selected] = zeros(Bool, length(locs))
+            d[:selected][selectedcache.idx] = true
+        else
+            d[:selected] = zeros(Bool, length(locs))
         end
-        res
+        d
     end
 
-    @debug "Created attributes dict with values" attributes_dict
-
-    # TODO: The assignment doesnot have to be used, because we are modifying inplace? But would the
-    # annotation_attributes change then? Probably yes. <04-05-22> 
-    function get_attributes(loc::Location, idx::Integer)
-        category = loc.category
-        base_attributes = category in keys(attributes_dict[]) ? attributes_dict[][category] : attributes_dict[][:fallback]
-        attributes = loc_layer.offset_conversion[](copy(base_attributes); offset = loc_layer[:offset][])
-        if loc_layer[:selected][] == idx
-            attributes = loc_layer.selected_conversion[](copy(attributes))
-        end
-        return attributes
+    function convert_attributes(attrs::Attributes, offset::Integer, selected::Bool)
+        loc_layer.offset_conversion[](attrs, offset = offset)
+        selected && loc_layer.selected_conversion[](attrs)
     end
 
-    # NOTE: Attributes themselves have to be notified <kunzaatko> 
-    function set_attributes!(plt_attributes, loc::Location, idx::Integer)
-        attributes = get_attributes(loc, idx)
-        for (k, v) in attributes
-            @assert k in keys(plt_attributes) && typeof(plt_attributes[k][]) <: AbstractVector "$k not in $(plt_attributes) or not a vector. Type is instead $(typeof(plt_attributes[k][]))"
-            plt_attributes[k][][idx] = v
+    # FIX: This is what merge! should do (#1939) <kunzaatko> 
+    function set_attributes(attrs::Attributes, new::Attributes)
+        for (k, v) in new
+        @debug "Setting $k from $(attrs[k][]) to $(v[])"
+            attrs[k] = v[]
         end
     end
 
-    function set_attributes!(plt_attributes, locs::AbstractVector{Location})
-        loc_len = length(locs)
-        for k in keys(attributes_dict[][:fallback])
-            attrs_len = length(plt_attributes[k][])
-            if attrs_len < loc_len
-                fallback_attr_value = attributes_dict[][:fallback][k]
-                append!(plt_attributes[k][], fill(fallback_attr_value, loc_len - attrs_len))
-            elseif attrs_len > loc_len
-                plt_attributes[k][] = plt_attributes[k][][1:loc_len]
+    # FIX: `merge` insonsistent. When #1939 resolved, can be fixed <kunzaatko> 
+    get_base_attributes(category) = haskey(loc_layer.annotation_attributes[], category) ?
+                                    merge(loc_layer.annotation_attributes[][category], fallback_attrs, loc_layer.scatter_attributes) : merge(fallback_attrs, loc_layer.scatter_attributes)
+
+    loc_layer_cats = Dict{Any,NamedTuple{(:scatter, :positions, :base_attrs)}}()
+
+    # NOTE: It is not possible to define more plots for the recipe after it finishes running. We
+    # have to predefine some. <kunzaatko> 
+    scatters = Vector(undef, loc_layer.max_categories[])
+    @async for i in Base.OneTo(loc_layer.max_categories[])
+        positions = Point2[] |> Observable
+        scatter = scatter!(loc_layer, positions; fallback_attrs..., visible = loc_layer.visible)
+        scatters[i] = (; scatter = scatter, positions = positions)
+    end
+
+    on(catbitarrays) do cbitarrays
+        for (cat, idxs) in cbitarrays
+            if !haskey(loc_layer_cats, cat) # create new entry
+                scatter, positions = pop!(scatters)
+                base_attrs = get_base_attributes(cat)
+                positions[] = loc_layer[:locations][][idxs].point
+                @debug "Creating new scatter for category $cat with base attributes $base_attrs"
+                loc_layer_cats[cat] = (; scatter = scatter, positions = positions, base_attrs = base_attrs)
+
+                # convert the attributes
+                new_attributes = copy(base_attrs)
+                convert_attributes(new_attributes, loc_layer[:offset][], cat == :selected)
+                set_attributes(scatter.attributes, new_attributes)
+
+            else # update the points
+                @debug "Updating category for category $cat"
+                loc_layer_cats[cat][:positions][] = loc_layer[:locations][][idxs].point
             end
         end
-        for (idx, loc) in enumerate(locs)
-            set_attributes!(plt_attributes, loc, idx)
+    end
+
+    function on_conversions(offset, _, _)
+        for (cat, (scatter, _, base_attrs)) in loc_layer_cats
+            new_attributes = copy(base_attrs)
+            convert_attributes(new_attributes, offset, cat == :selected)
+            set_attributes(scatter.attributes, new_attributes)
         end
     end
+    onany(on_conversions, loc_layer[:offset], loc_layer.offset_conversion, loc_layer.selected_conversion)
 
-    function notify_attributes(plt_attributes)
-        for k in keys(attributes_dict[][:fallback])
-            notify(plt_attributes[k])
-        end
-    end
-
-    # FIX: Every time one of `locations`, `offset` is inspected, the listeners
-    # are called. This leads to them being called even when they are not needed. <kunzaatko> 
-    # TODO: Ask on discourse <27-04-22> 
-
-    points = Point2[] |> Observable
-    plt_attributes = Attributes(Dict(k => Observable(typeof(v)[]) for (k, v) in attributes_dict[][:fallback])) # undefined vectors to pass as attributes
-
-    plt = scatter!(loc_layer, points; plt_attributes..., loc_layer.scatter_attributes..., visible = loc_layer.visible)
-
-    function on_locations(locations)
-        @debug "Running `on_locations`"
-        selected = loc_layer[:selected]
-        if !isnothing(selected[]) && selected[].idx > length(locations)
-            @debug "Changed selected to `nothing`"
-            selected[] = nothing
-        end
-        empty!(points[])
-        append!(points[], getfield.(locations, :point))
-        set_attributes!(plt.attributes, locations)
-        notify_attributes(plt.attributes)
-        notify(points)
-    end
-    on(on_locations, loc_layer[:locations])
-
-    function set_all_attributes(_, _, _)
-        @debug "Running `set_all_attributes`"
-        set_attributes!(plt.attributes, loc_layer[:locations][])
-        notify_attributes(plt.attributes)
-    end
-    onany(set_all_attributes, loc_layer.offset_conversion, loc_layer.annotation_attributes, loc_layer[:offset])
-
-    selected_buffer = CircularBuffer(1)
-    if !isnothing(loc_layer[:selected][])
-        push!(selected_buffer, loc_layer[:selected][])
-    end
-    function on_selected(selected, _)
-        @debug "Running `on_selected`"
-        @debug "Selected_buffer" selected_buffer
-        # FIX: This should not be necessary. When fixed DataStructures.jl#810 can update. <08-05-22> 
-        if length(selected_buffer) > 0
-            for prev in filter(s -> s.idx <= length(loc_layer[:locations][]), selected_buffer)
-                set_attributes!(plt.attributes, loc_layer[:locations][][prev.idx], prev.idx)
-            end
+    on(loc_layer[:selected]) do selected
+        empty!(loc_layer_cats[:selected][:positions][])
+        if !isnothing(selectedcache) # restore prev selected
+            c, p = loc_layer[:locations][].category[selectedcache.idx], loc_layer[:locations][].point[selectedcache.idx]
+            catbitarrays.val[c][selectedcache.idx] = 1 # set without notify
+            push!(loc_layer_cats[c][:positions][], p)
+            notify(loc_layer_cats[c][:positions])
         end
         if !isnothing(selected)
-            set_attributes!(plt.attributes, loc_layer[:locations][][selected.idx], selected.idx)
-            push!(selected_buffer, selected)
+            c, p = loc_layer[:locations][].category[selected.idx], loc_layer[:locations][].point[selected.idx]
+            catbitarrays.val[c][selected.idx] = 0 # set without notify
+            push!(loc_layer_cats[:selected][:positions][], p)
+            loc_layer_cats[c][:positions][] = loc_layer[:locations][][catbitarrays[][c]].point
         end
-        notify_attributes(plt.attributes)
+        notify(loc_layer_cats[:selected][:positions])
+        selectedcache = selected
     end
-    onany(on_selected, loc_layer[:selected], loc_layer.selected_conversion)
 
-    on_locations(loc_layer[:locations][])
+    # Initial scatters (this is for making the additional scatter initializations @async)
+    for (cat, idxs) in catbitarrays[]
+        positions = loc_layer[:locations][][idxs].point |> Observable
+        scatter = scatter!(loc_layer, positions; visible = loc_layer.visible)
+        base_attrs = get_base_attributes(cat)
+        loc_layer_cats[cat] = (; scatter = scatter, positions = positions, base_attrs = base_attrs)
+    end
+    on_conversions(loc_layer[:offset][], loc_layer.offset_conversion[], loc_layer.selected_conversion[])
+
 
     return loc_layer
 end
 
-convert_arguments(P::Type{<:LocationsLayer}, offset::Integer, selected::Union{Nothing,Integer}, locations::AbstractVector{Location}) = convert_arguments(P, offset, Selected(selected), locations)
+convert_arguments(P::Type{<:LocationsLayer}, offset::Integer, selected::Union{Nothing,Integer}, locations::AbstractVector{Location}) = convert_arguments(P, offset, Selected(selected), StructVector(locations))
